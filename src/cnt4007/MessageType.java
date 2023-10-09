@@ -1,4 +1,4 @@
-package p2pFileSharing;
+package cnt4007;
 
 public enum MessageType {
 

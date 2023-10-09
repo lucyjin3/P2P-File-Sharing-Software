@@ -1,4 +1,4 @@
-package p2pFileSharing;
+package cnt4007;
 
 import java.io.BufferedReader;
 import java.io.IOException;
