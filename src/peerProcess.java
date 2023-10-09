@@ -39,6 +39,7 @@ public class peerProcess {
         }
     }
 
+    //Quick Fix
     public static void main(String[] args) {
         try {
             peerProcess config = new peerProcess("project_config_file_small\\Common.cfg");
