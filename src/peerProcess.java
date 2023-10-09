@@ -11,11 +11,13 @@ public class peerProcess {
     public int fileSize;
     public int pieceSize;
     Vector<PeerInfo> peerInfoVector = new Vector<>();
+    public int whoAmIIDNumber;
     public static class PeerInfo {
         public int peerID;
         public String peerHostName;
         public int peerPortNumber;
         public int hasFile;
+
         public PeerInfo(int peerID, String peerHostName, int peerPortNumber, int hasFile) {
             this.peerID = peerID;
             this.peerHostName = peerHostName;
@@ -96,6 +98,7 @@ public class peerProcess {
     public static void main(String[] args) {
         try {
             peerProcess config = new peerProcess("project_config_file_small\\Common.cfg", "project_config_file_small\\PeerInfo.cfg");
+            config.whoAmIIDNumber = Integer.parseInt(args[0]);
             config.printConfigInfo();
             config.printPeerInfo();
             // ... You can print other fields similarly
