@@ -52,7 +52,9 @@ public class StartRemotePeers {
 
         ArrayList<PeerInfo> peerList = new ArrayList<>();
 // Alter your code to have ur uf user name
-        String ciseUser = "carson.schmidt"; // change with your CISE username
+        String ciseUser = "carson.schmidt"; // carson
+        //String ciseUser = "jinh"; // lucy
+        //String ciseUser = " "; // sydney
 
 /**
  * Make sure the below peer hostnames and peerIDs match those in
@@ -77,7 +79,9 @@ public class StartRemotePeers {
                  * of JSch which accepts a password.
                  */
                 // Make sure this code is also your local file path to .ssh
-                jsch.addIdentity("C:\\Users\\csesc_snhoakq\\.ssh\\id_rsa", "");
+                jsch.addIdentity("C:\\Users\\csesc_snhoakq\\.ssh\\id_rsa", ""); //carson
+                //jsch.addIdentity("/Users/lucyjin3/.ssh/id_rsa", ""); //lucy
+                //jsch.addIdentity("C:\\Users\\csesc_snhoakq\\.ssh\\id_rsa", ""); //sydney
                 Session session = jsch.getSession(ciseUser, remotePeer.getHostName(), 22);
                 Properties config = new Properties();
                 config.put("StrictHostKeyChecking", "no");
