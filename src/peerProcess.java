@@ -41,8 +41,13 @@ public class peerProcess {
 
     public static void main(String[] args) {
         try {
-            peerProcess config = new peerProcess("Common.cfg");
+            peerProcess config = new peerProcess("project_config_file_small\\Common.cfg");
             System.out.println("Number Of Preferred Neighbors: " + config.numberOfPreferredNeighbors);
+            System.out.println("Unchoking Interval: " + config.unchokingInterval);
+            System.out.println("Optimistic Unchoking Interval: " + config.optimisticUnchokingInterval);
+            System.out.println("File Name: " + config.fileName);
+            System.out.println("File Size: " + config.fileSize);
+            System.out.println("Piece Size: " + config.pieceSize);
             // ... You can print other fields similarly
         } catch (IOException e) {
             System.out.println("Error reading the configuration file: " + e.getMessage());
