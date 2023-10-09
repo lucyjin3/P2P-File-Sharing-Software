@@ -26,6 +26,15 @@ public class peerProcess {
         }
 
     }
+    public void printConfigInfo(){
+        System.out.println("Number Of Preferred Neighbors: " + config.numberOfPreferredNeighbors);
+        System.out.println("Unchoking Interval: " + config.unchokingInterval);
+        System.out.println("Optimistic Unchoking Interval: " + config.optimisticUnchokingInterval);
+        System.out.println("File Name: " + config.fileName);
+        System.out.println("File Size: " + config.fileSize);
+        System.out.println("Piece Size: " + config.pieceSize);
+        System.out.println("----------------------------");
+    }
     public void printPeerInfo() {
         for (PeerInfo peer : peerInfoVector) {
             System.out.println("Peer ID: " + peer.peerID);
@@ -92,15 +101,7 @@ public class peerProcess {
 
             config.whoAmIIDNumber = Integer.parseInt(args[0]);
             config.printConfigInfo();
-            System.out.println("Number Of Preferred Neighbors: " + config.numberOfPreferredNeighbors);
-            System.out.println("Unchoking Interval: " + config.unchokingInterval);
-            System.out.println("Optimistic Unchoking Interval: " + config.optimisticUnchokingInterval);
-            System.out.println("File Name: " + config.fileName);
-            System.out.println("File Size: " + config.fileSize);
-            System.out.println("Piece Size: " + config.pieceSize);
-            System.out.println("----------------------------");
             config.printPeerInfo();
-            // ... You can print other fields similarly
         } catch (IOException e) {
             System.out.println("Error reading the configuration file: " + e.getMessage());
         }
