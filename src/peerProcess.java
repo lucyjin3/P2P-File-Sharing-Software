@@ -27,6 +27,7 @@ public class peerProcess {
 
     }
     public void printConfigInfo(){
+        System.out.println("WHOAMI: "+ whoAmIIDNumber);
         System.out.println("Number Of Preferred Neighbors: " + numberOfPreferredNeighbors);
         System.out.println("Unchoking Interval: " + unchokingInterval);
         System.out.println("Optimistic Unchoking Interval: " + optimisticUnchokingInterval);
