@@ -2,7 +2,11 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Vector;
+import java.net.Socket;
+import cnt4007.Server;
+import cnt4007.Client;
 
+// Will be called by startRemotePeers for each peer
 public class peerProcess {
     public int numberOfPreferredNeighbors;
     public int unchokingInterval;
@@ -12,6 +16,8 @@ public class peerProcess {
     public int pieceSize;
     Vector<PeerInfo> peerInfoVector = new Vector<>();
     public int whoAmIIDNumber;
+
+    // Each peer will know who it is
     public static class PeerInfo {
         public int peerID;
         public String peerHostName;
@@ -26,6 +32,9 @@ public class peerProcess {
         }
 
     }
+
+    // printConfigInfo() outputs the information in the configuration file
+    // Used for testing purposes
     public void printConfigInfo(){
         System.out.println("WHOAMI: "+ whoAmIIDNumber);
         System.out.println("Number Of Preferred Neighbors: " + numberOfPreferredNeighbors);
@@ -36,6 +45,8 @@ public class peerProcess {
         System.out.println("Piece Size: " + pieceSize);
         System.out.println("----------------------------");
     }
+
+    // Used for testing to print out peerInfo
     public void printPeerInfo() {
         for (PeerInfo peer : peerInfoVector) {
             System.out.println("Peer ID: " + peer.peerID);
@@ -46,11 +57,12 @@ public class peerProcess {
         }
     }
 
-    // Constructor to initialize from the file
+    // Constructor to initialize from the config files
     public peerProcess(String configFilePath, String peerInfoFilePath) throws IOException {
 
         BufferedReader reader = null;
         try {
+            // This will read the info from the Common.cfg file
             reader = new BufferedReader(new FileReader(configFilePath));
             String line;
             while ((line = reader.readLine()) != null) {
@@ -75,6 +87,7 @@ public class peerProcess {
             }
         }
         try {
+            // This will read the peerInfo from the PeerInfo.cfg for each peer
             reader = new BufferedReader(new FileReader(peerInfoFilePath));
             String line;
             while ((line = reader.readLine()) != null) {
@@ -92,8 +105,36 @@ public class peerProcess {
                 reader.close();
             }
         }
+
     }
 
+    // This will start the server and client for each peer
+    public void makeConnections(peerProcess config) {
+        // Start the server and the client
+        Thread serverThread = new Thread(() -> {
+            startClient();
+        });
+        serverThread.start();
+
+        // Give the server some time to initialize, if necessary
+        try {
+            Thread.sleep(1000);  // 1 second delay. Adjust if necessary.
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // Start client in the main thread or in another separate thread if desired
+        startServer();
+    }
+
+    public void startServer() {
+        Server.main(null);
+
+    }
+
+    public void startClient(){
+        Client.main(null);
+    }
 
     public static void main(String[] args) {
         try {
