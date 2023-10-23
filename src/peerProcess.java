@@ -96,12 +96,19 @@ public class peerProcess {
 
     public static void main(String[] args) {
         try {
-            peerProcess config = new peerProcess("project_config_file_small\\Common.cfg", "project_config_file_small\\PeerInfo.cfg");
-            //peerProcess config = new peerProcess("project_config_file_small/Common.cfg", "project_config_file_small/PeerInfo.cfg");//lucy mac
-
-            config.whoAmIIDNumber = Integer.parseInt(args[0]);
+            //peerProcess config = new peerProcess("project_config_file_small\\Common.cfg", "project_config_file_small\\PeerInfo.cfg");
+            peerProcess config = new peerProcess("project_config_file_small/Common.cfg", "project_config_file_small/PeerInfo.cfg");//lucy mac
+            if(args.length > 0) {
+                config.whoAmIIDNumber = Integer.parseInt(args[0]);
+            } else {
+                System.out.println("Please provide a valid ID number as an argument.");
+                config.whoAmIIDNumber = 1001;
+            }
             config.printConfigInfo();
             config.printPeerInfo();
+
+            // Start the server and the client for each peer
+            config.makeConnections(config);
         } catch (IOException e) {
             System.out.println("Error reading the configuration file: " + e.getMessage());
         }
