@@ -4,6 +4,7 @@ import java.util.Vector;
 import java.net.Socket;
 import cnt4007.Server;
 import cnt4007.Client;
+import cnt4007.FileCreator;
 
 // Will be called by startRemotePeers for each peer
 public class peerProcess {
@@ -15,6 +16,9 @@ public class peerProcess {
     public int pieceSize;
     Vector<PeerInfo> peerInfoVector = new Vector<>();
     public int whoAmIIDNumber;
+    public static int numberOfPieces;
+    public boolean iHaveFile;
+
 
     // Each peer will know who it is
     public static class PeerInfo {
@@ -47,6 +51,7 @@ public class peerProcess {
         System.out.println("File Name: " + fileName);
         System.out.println("File Size: " + fileSize);
         System.out.println("Piece Size: " + pieceSize);
+        System.out.println("Number of pieces: "+ numberOfPieces);
         System.out.println("----------------------------");
     }
 
@@ -87,6 +92,8 @@ public class peerProcess {
                     pieceSize = Integer.parseInt(parts[1]);
                 }
             }
+
+            numberOfPieces = (fileSize+pieceSize-1)/pieceSize;
         } finally {
             if (reader != null) {
                 reader.close();
@@ -102,6 +109,14 @@ public class peerProcess {
                 String peerHostName = parts[1];
                 int peerPortNumber = Integer.parseInt(parts[2]);
                 int hasFile = Integer.parseInt(parts[3]);
+                if (peerID == whoAmIIDNumber){
+                    if (hasFile == 1){
+                        iHaveFile = true;
+                    }
+                    else {
+                        iHaveFile = false;
+                    }
+                }
 
                 PeerInfo peerInfo = new PeerInfo(peerID, peerHostName, peerPortNumber, hasFile);
                 peerInfoVector.add(peerInfo);
@@ -214,6 +229,19 @@ public class peerProcess {
         Client.main(args);
     }
 
+    // Used to create the file for peers that do not have the file
+    public void createFile(){
+        if (!iHaveFile) {
+
+            // Create a new directory for each peer that does not have the file
+            new File(Integer.toString(whoAmIIDNumber)).mkdirs();
+            String[] createFileArray = new String[2];
+            createFileArray[0] = whoAmIIDNumber + "/" + fileName ;
+            createFileArray[1] = Integer.toString(fileSize);
+            FileCreator.main(createFileArray);
+        }
+    }
+
     public static void main(String[] args) {
 
         try {
@@ -226,6 +254,9 @@ public class peerProcess {
                 System.out.println("Please provide a valid ID number as an argument.");
                 config.whoAmIIDNumber = 1001;
             }
+
+            config.createFile();
+            config.checkIfFileWrittenCorrectly();
             config.printConfigInfo();
             config.printPeerInfo();
 
