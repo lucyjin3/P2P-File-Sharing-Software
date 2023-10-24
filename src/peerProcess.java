@@ -1,6 +1,5 @@
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.util.Arrays;
 import java.util.Vector;
 import java.net.Socket;
 import cnt4007.Server;
@@ -29,6 +28,11 @@ public class peerProcess {
             this.peerHostName = peerHostName;
             this.peerPortNumber = peerPortNumber;
             this.hasFile = hasFile;
+            this.bitfield = new int[numberOfPieces];
+            if( hasFile == 1){
+                Arrays.fill(bitfield,1);
+            }
+
         }
 
     }
@@ -62,9 +66,11 @@ public class peerProcess {
 
         BufferedReader reader = null;
         try {
+
             // This will read the info from the Common.cfg file
             reader = new BufferedReader(new FileReader(configFilePath));
             String line;
+
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split(" ");
                 if (parts[0].equals("NumberOfPreferredNeighbors")) {
@@ -110,6 +116,7 @@ public class peerProcess {
 
     // This will start the server and client for each peer
     public void makeConnections(peerProcess config) {
+
         // Start the server and the client
         Thread serverThread = new Thread(() -> {
             startClient();
@@ -118,7 +125,8 @@ public class peerProcess {
 
         // Give the server some time to initialize, if necessary
         try {
-            Thread.sleep(1000);  // 1 second delay. Adjust if necessary.
+            // 1 second delay. Adjust if necessary.
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -127,19 +135,91 @@ public class peerProcess {
         startServer();
     }
 
+    // writeToFile will allow us to write to fileName at a specific index
+    public static void writeToFile(String fileName, int pieceSize, int pieceNumber, byte[] data) throws Exception {
+
+        // Calculate the position in the file where you want to start writing
+        long position = (long) pieceNumber * pieceSize;
+
+        // By using synchronized key word it allows for singular access to the file
+        // This prevents the possibility of different threads writing to the same file
+        // at the same time
+        synchronized (fileName.intern()) {
+            try (RandomAccessFile raf = new RandomAccessFile(fileName, "rw")) {
+                // This finds the starting point for a piece
+                raf.seek(position);
+                // After finding the starting point it writes the data for that piece
+                // to the file
+                raf.write(data);
+            }
+        }
+    }
+
+    public void checkIfFileWrittenCorrectly(){
+        // File name for the initially read file
+        String file1 = "project_config_file_small/1001/thefile";
+
+        // File name for the outputted file
+        String file2 = Integer.toString(whoAmIIDNumber) + "/" + fileName;
+
+        try (
+                // Tries opening the initially read file and outputted file
+                FileInputStream fis1 = new FileInputStream(file1);
+                FileInputStream fis2 = new FileInputStream(file2)
+        ) {
+            // Checks the number of available bytes
+            // If both files don't have same number of bytes cannot be the same
+            if (fis1.available() != fis2.available()) {
+                System.out.println("Files have different sizes and are not identical.");
+                return;
+            }
+
+            // Initializes the bytes to check each file
+            int byteData1;
+            int byteData2;
+            // While the byte does not equal the end of file
+            while ((byteData1 = fis1.read()) != -1) {
+                // Reads in the second file byte
+                byteData2 = fis2.read();
+                // Checks if the bytes are equal
+                if (byteData1 != byteData2) {
+                    // If the file bytes are ever not the same they are not equal
+                    // This means the code does not write the file correctly
+                    System.out.println("Files are not identical.");
+                    return;
+                }
+            }
+
+            System.out.println("Files are identical!");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Start the Server for the peer
     public void startServer() {
-        Server.main(null);
+
+        // For testing purposes, working with peer 1001
+        String[] args = {"1001"};
+        Server.main(args);
 
     }
 
+    // Start the Client for the peer
     public void startClient(){
-        Client.main(null);
+
+        // For testing purposes, working with peer 1002
+        String[] args = {"1002"};
+        Client.main(args);
     }
 
     public static void main(String[] args) {
+
         try {
             //peerProcess config = new peerProcess("project_config_file_small\\Common.cfg", "project_config_file_small\\PeerInfo.cfg");
             peerProcess config = new peerProcess("project_config_file_small/Common.cfg", "project_config_file_small/PeerInfo.cfg");//lucy mac
+
             if(args.length > 0) {
                 config.whoAmIIDNumber = Integer.parseInt(args[0]);
             } else {
@@ -151,6 +231,7 @@ public class peerProcess {
 
             // Start the server and the client for each peer
             config.makeConnections(config);
+
         } catch (IOException e) {
             System.out.println("Error reading the configuration file: " + e.getMessage());
         }
