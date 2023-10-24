@@ -26,6 +26,7 @@ public class peerProcess {
         public String peerHostName;
         public int peerPortNumber;
         public int hasFile;
+        public int[] bitfield;
 
         public PeerInfo(int peerID, String peerHostName, int peerPortNumber, int hasFile) {
             this.peerID = peerID;
@@ -40,6 +41,8 @@ public class peerProcess {
         }
 
     }
+
+
 
     // printConfigInfo() outputs the information in the configuration file
     // Used for testing purposes
