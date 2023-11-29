@@ -1,11 +1,9 @@
 package cnt4007;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Properties;
+import java.util.Scanner;
 
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
@@ -49,13 +47,46 @@ public class StartRemotePeers {
     }
 
     public static void main(String[] args) {
-
+        Scanner in = new Scanner(System.in);
+        File file;
+        String dir;
         ArrayList<PeerInfo> peerList = new ArrayList<>();
+        System.out.println("Enter CISE username: ");
+        String ciseUser = in.nextLine();
 // Alter your code to have ur uf user name
         //String ciseUser = "carson.schmidt"; // carson
-        String ciseUser = "jinh"; // lucy
-        //String ciseUser = " "; // sydney
+        //String ciseUser = "jinh"; // lucy
+        //String ciseUser = "smclaughlin"; // sydney
 
+        System.out.println("Enter path to your private key: ");
+        String prvKey = in.nextLine();
+
+        System.out.println("Pick a file: \n[1] project_config_file_large \n[2] project_config_file_small");
+        String userInput = in.nextLine();
+
+        if(userInput.equals("1")){
+            dir = "project_config_file_large";
+            file = new File("project_config_file_large/PeerInfo.cfg");
+        }else if (userInput.equals("2")){
+            dir = "project_config_file_small";
+            file = new File("project_config_file_small/PeerInfo.cfg");
+        }else{
+            System.out.println("Invalid option");
+            return;
+        }
+
+        try {
+            Scanner sc = new Scanner(file);
+            int id = 1;
+            while (sc.hasNextLine()){
+                String peerInfo = sc.nextLine();
+                String[] line = peerInfo.split(" ");
+                peerList.add(new PeerInfo(Integer.toString(id++), line[1]));
+            }
+        }catch(java.io.FileNotFoundException e){
+            System.out.println("Error");
+            return;
+        }
 /**
  * Make sure the below peer hostnames and peerIDs match those in
  * PeerInfo.cfg in the remote CISE machines. Also make sure that the
@@ -63,11 +94,11 @@ public class StartRemotePeers {
  * folder.
  */
 
-        peerList.add(new PeerInfo("1", "lin114-06.cise.ufl.edu"));
-        peerList.add(new PeerInfo("2", "lin114-08.cise.ufl.edu"));
-        peerList.add(new PeerInfo("3", "lin114-09.cise.ufl.edu"));
-        peerList.add(new PeerInfo("4", "lin114-04.cise.ufl.edu"));
-        peerList.add(new PeerInfo("5", "lin114-05.cise.ufl.edu"));
+//        peerList.add(new PeerInfo("1", "lin114-06.cise.ufl.edu"));
+//        peerList.add(new PeerInfo("2", "lin114-08.cise.ufl.edu"));
+//        peerList.add(new PeerInfo("3", "lin114-09.cise.ufl.edu"));
+//        peerList.add(new PeerInfo("4", "lin114-04.cise.ufl.edu"));
+//        peerList.add(new PeerInfo("5", "lin114-05.cise.ufl.edu"));
 
         for (PeerInfo remotePeer : peerList) {
             try {
@@ -80,13 +111,13 @@ public class StartRemotePeers {
                  */
                 // Make sure this code is also your local file path to .ssh
                 //jsch.addIdentity("C:\\Users\\csesc_snhoakq\\.ssh\\id_rsa", ""); //carson
-                jsch.addIdentity("/Users/lucyjin3/.ssh/id_rsa", ""); //lucy
-                //jsch.addIdentity("C:\\Users\\csesc_snhoakq\\.ssh\\id_rsa", ""); //sydney
+                //jsch.addIdentity("/Users/lucyjin3/.ssh/id_rsa", ""); //lucy
+                //jsch.addIdentity("C:\\Users\\sydmc\\.ssh\\id_rsa", ""); //sydney
+                jsch.addIdentity(prvKey,"");
                 Session session = jsch.getSession(ciseUser, remotePeer.getHostName(), 22);
                 Properties config = new Properties();
                 config.put("StrictHostKeyChecking", "no");
                 session.setConfig(config);
-
                 session.connect();
 
                 System.out.println("Session to peer# " + remotePeer.getPeerID() + " at " + remotePeer.getHostName());
