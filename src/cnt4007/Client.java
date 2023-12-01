@@ -28,6 +28,7 @@ public class Client {
             this.host = host;
             this.port = port;
             this.clientId = clientId;
+            this.server = server;
             this.exceptionRef = exceptionRef;
         }
 
