@@ -136,7 +136,7 @@ public class peerProcess {
     // This will start the server and client for each peer
     public void makeConnections(peerProcess config) {
 
-        // Start the server and the client
+        // Starts thread for the server and the client
         Thread serverThread = new Thread(() -> {
             startServer(config.whoAmIIDNumber);
         });
@@ -220,7 +220,7 @@ public class peerProcess {
     }
 
     // Start the Server for the peer
-    public void startServer() {
+    public static void startServer(int peerId) {
 
         // For testing purposes, working with peer 1001
         //String[] args = {Integer.toString(peerId)};
@@ -248,6 +248,29 @@ public class peerProcess {
             FileCreator.main(createFileArray);
         }
     }
+
+    /*
+        for (int i = 0; i < peerVector.size(); i++){
+
+            if (peerVector[i] = whoAmI){
+                break;
+            }
+            connect(peerVector[i]);
+        }
+    public void connectPeers(int peerId=3){
+        int totalNumPeers= 5;
+
+        for(int i = 1; i < peerId; i++{
+            connectPeer();
+        }
+
+        for ( int i = 2; i<= totalNumPeers; i++){
+            for (int j = i-1; j >= 1 ;j --){
+            connectPeer();
+        }
+    }
+
+     */
 
     public static void main(String[] args) {
 
