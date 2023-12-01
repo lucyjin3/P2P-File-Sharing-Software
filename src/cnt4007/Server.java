@@ -37,7 +37,7 @@ public class Server {
         try {
             int port = 6001;
             ServerSocket serverSocket = new ServerSocket(port);
-            System.out.println("Server is running and listening on port " + port);
+            System.out.println(peerID + " server is running and listening on port " + port);
             
             while (true) {
                 Socket clientSocket = serverSocket.accept();

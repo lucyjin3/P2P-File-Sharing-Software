@@ -143,7 +143,7 @@ public class StartRemotePeers {
                 InputStream input = channel.getInputStream();
                 channel.connect();
 
-                System.out.println("Channel Connected to peer# " + remotePeer.getPeerID() + " at "
+                System.out.println("Channel Connected to peer # " + remotePeer.getPeerID() + " at "
                         + remotePeer.getHostName() + " server with commands");
 
                 (new Thread(() -> {

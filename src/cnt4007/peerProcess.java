@@ -17,6 +17,13 @@ public class peerProcess {
     public static int numberOfPieces;
     public boolean iHaveFile;
 
+    public int getWhoAmIIDNumber() {
+        return whoAmIIDNumber;
+    }
+    Vector<PeerInfo> getPeerInfoVector(){
+        return peerInfoVector;
+    }
+
 
     // Each peer will know who it is
     public static class PeerInfo {
@@ -32,8 +39,8 @@ public class peerProcess {
             this.peerPortNumber = peerPortNumber;
             this.hasFile = hasFile;
             this.bitfield = new int[numberOfPieces];
-            if( hasFile == 1){
-                Arrays.fill(bitfield,1);
+            if (hasFile == 1) {
+                Arrays.fill(bitfield, 1);
             }
 
         }
@@ -44,18 +51,17 @@ public class peerProcess {
     }
 
 
-
     // printConfigInfo() outputs the information in the configuration file
     // Used for testing purposes
-    public void printConfigInfo(){
-        System.out.println("WHOAMI: "+ whoAmIIDNumber);
+    public void printConfigInfo() {
+        System.out.println("WHOAMI: " + whoAmIIDNumber);
         System.out.println("Number Of Preferred Neighbors: " + numberOfPreferredNeighbors);
         System.out.println("Unchoking Interval: " + unchokingInterval);
         System.out.println("Optimistic Unchoking Interval: " + optimisticUnchokingInterval);
         System.out.println("File Name: " + fileName);
         System.out.println("File Size: " + fileSize);
         System.out.println("Piece Size: " + pieceSize);
-        System.out.println("Number of pieces: "+ numberOfPieces);
+        System.out.println("Number of pieces: " + numberOfPieces);
         System.out.println("----------------------------");
     }
 
@@ -97,7 +103,7 @@ public class peerProcess {
                 }
             }
 
-            numberOfPieces = (fileSize+pieceSize-1)/pieceSize;
+            numberOfPieces = (fileSize + pieceSize - 1) / pieceSize;
         } finally {
             if (reader != null) {
                 reader.close();
@@ -113,11 +119,10 @@ public class peerProcess {
                 String peerHostName = parts[1];
                 int peerPortNumber = Integer.parseInt(parts[2]);
                 int hasFile = Integer.parseInt(parts[3]);
-                if (peerID == whoAmIIDNumber){
-                    if (hasFile == 1){
+                if (peerID == whoAmIIDNumber) {
+                    if (hasFile == 1) {
                         iHaveFile = true;
-                    }
-                    else {
+                    } else {
                         iHaveFile = false;
                     }
                 }
@@ -177,7 +182,7 @@ public class peerProcess {
         }
     }
 
-    public void checkIfFileWrittenCorrectly(){
+    public void checkIfFileWrittenCorrectly() {
         // File name for the initially read file
         String file1 = "project_config_file_small/1001/thefile";
 
@@ -229,7 +234,7 @@ public class peerProcess {
     }
 
     // Start the Client for the peer
-    public void startClient(){
+    public static void startClient(int peerId,Vector<PeerInfo> peerInfoVector) {
 
         // For testing purposes, working with peer 1002
         //String[] args = {Integer.toString(peerId)};
@@ -237,13 +242,13 @@ public class peerProcess {
     }
 
     // Used to create the file for peers that do not have the file
-    public void createFile(){
+    public void createFile() {
         if (!iHaveFile) {
 
             // Create a new directory for each peer that does not have the file
             new File(Integer.toString(whoAmIIDNumber)).mkdirs();
             String[] createFileArray = new String[2];
-            createFileArray[0] = whoAmIIDNumber + "/" + fileName ;
+            createFileArray[0] = whoAmIIDNumber + "/" + fileName;
             createFileArray[1] = Integer.toString(fileSize);
             FileCreator.main(createFileArray);
         }
@@ -288,6 +293,12 @@ public class peerProcess {
             //config.printPeerInfo();
 
             // Start the server and the client for each peer
+            /*if(config.getPeerInfoVector.get(config.peerInfoVector.size() - 1).peerID != config.whoAmIIDNumber){
+                startServer();
+            }
+            if(config.getPeerInfoVector().get(0).peerID != config.whoAmIIDNumber){
+                startClient();
+            }*/
             config.makeConnections(config);
 
         } catch (IOException e) {

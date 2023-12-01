@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.*;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicReference;
+import java.nio.charset.StandardCharsets;
 
 // Client for each peer
 // Will connect to the peers that have started previously
@@ -56,10 +57,11 @@ public class Client {
                 if (!serverMessage.equals("P2PFILESHARINGPROJ00000000001001")) {
                     System.out.println("Received: " + serverMessage + "\n Expecting: P2PFILESHARINGPROJ0000000000" + clientId);
                 }
+                String lastFourServerID = serverMessage.substring(serverMessage.length()-4);
 
                 Date time = new Date();
-                String serverID = serverMessage.substring(28);
-                System.out.println("[" + time + "] Peer " + clientId + " makes a connection to Peer " + serverID);
+               // String serverID = serverMessage.substring(28);
+                System.out.println("[" + time + "] Peer " + clientId + " makes a connection to Peer " + lastFourServerID);
                 System.out.println("Received: " + serverMessage);
 
                 while ((serverMessage = userInput.readLine()) != null) {
@@ -80,6 +82,29 @@ public class Client {
                 exceptionRef.set(new ServerNotReadyException("Server is not ready yet."));
             }
         }
+    }
+
+    public static void readMessage(Socket clientSocket) throws IOException {
+        InputStream input = clientSocket.getInputStream();
+
+        // Read the first 5 bytes (4 for length, 1 for type)
+        byte[] lengthBytes = input.readNBytes(4);
+        byte[] typeByte = input.readNBytes(1);
+
+        // Convert length bytes to String and then parse integer
+        String lengthStr = new String(lengthBytes, StandardCharsets.US_ASCII);
+        int length = Integer.parseInt(lengthStr);
+
+        // Convert type byte to char
+        char type = new String(typeByte, StandardCharsets.US_ASCII).charAt(0);
+
+        // Read the payload
+        byte[] payloadBytes = input.readNBytes(length);
+        String payload = new String(payloadBytes, StandardCharsets.US_ASCII);
+
+        System.out.println("Length: " + length);
+        System.out.println("Type: " + type);
+        System.out.println("Payload: " + payload);
     }
 
     public static void main(String[] args) {
