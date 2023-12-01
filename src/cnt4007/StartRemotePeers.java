@@ -15,7 +15,9 @@ import com.jcraft.jsch.Session;
 
 public class StartRemotePeers {
 
-    private static final String scriptPrefix = "java p2pFileSharing/peerProcess ";
+    //p2pFileSharing/cnt4007.
+    private static final String scriptPrefix = "java cnt4007/peerProcess ";
+
 
     public static class PeerInfo {
 
@@ -47,22 +49,40 @@ public class StartRemotePeers {
     }
 
     public static void main(String[] args) {
-        Scanner in = new Scanner(System.in);
+
         File file;
         String dir;
-        ArrayList<PeerInfo> peerList = new ArrayList<>();
-        System.out.println("Enter CISE username: ");
-        String ciseUser = in.nextLine();
-// Alter your code to have ur uf user name
-        //String ciseUser = "carson.schmidt"; // carson
-        //String ciseUser = "jinh"; // lucy
-        //String ciseUser = "smclaughlin"; // sydney
 
-        System.out.println("Enter path to your private key: ");
-        String prvKey = in.nextLine();
+        ArrayList<PeerInfo> peerList = new ArrayList<>();
+// Alter your code to have ur uf user name
+        String ciseUser = "carson.schmidt"; // carson
+        //String ciseUser = "jinh"; // lucy
+        //String ciseUser = " "; // sydney
+
+/**
+ * Make sure the below peer hostnames and peerIDs match those in
+ * PeerInfo.cfg in the remote CISE machines. Also make sure that the
+ * peers which have the file initially have it under the 'peer_[peerID]'
+ * folder.
+ */
+      /*  Console console = System.console();
+        if (console == null) {
+            System.out.println("No console available");
+            return;
+        }
+        String username = console.readLine("Enter your username: ");
+        char[] password = console.readPassword("Enter your password: ");
+        */
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Enter your username: ");
+        String username = scanner.nextLine();
+
+        System.out.print("Enter your password: ");
+        String password = scanner.nextLine(); // Note: This will not hide the password input
 
         System.out.println("Pick a file: \n[1] project_config_file_large \n[2] project_config_file_small");
-        String userInput = in.nextLine();
+        String userInput = scanner.nextLine();
 
         if(userInput.equals("1")){
             dir = "project_config_file_large";
@@ -77,28 +97,16 @@ public class StartRemotePeers {
 
         try {
             Scanner sc = new Scanner(file);
-            int id = 1;
+            //int id = 1;
             while (sc.hasNextLine()){
                 String peerInfo = sc.nextLine();
                 String[] line = peerInfo.split(" ");
-                peerList.add(new PeerInfo(Integer.toString(id++), line[1]));
+                peerList.add(new PeerInfo(line[0], line[1]));
             }
         }catch(java.io.FileNotFoundException e){
             System.out.println("Error");
             return;
         }
-/**
- * Make sure the below peer hostnames and peerIDs match those in
- * PeerInfo.cfg in the remote CISE machines. Also make sure that the
- * peers which have the file initially have it under the 'peer_[peerID]'
- * folder.
- */
-
-//        peerList.add(new PeerInfo("1", "lin114-06.cise.ufl.edu"));
-//        peerList.add(new PeerInfo("2", "lin114-08.cise.ufl.edu"));
-//        peerList.add(new PeerInfo("3", "lin114-09.cise.ufl.edu"));
-//        peerList.add(new PeerInfo("4", "lin114-04.cise.ufl.edu"));
-//        peerList.add(new PeerInfo("5", "lin114-05.cise.ufl.edu"));
 
         for (PeerInfo remotePeer : peerList) {
             try {
@@ -110,21 +118,24 @@ public class StartRemotePeers {
                  * of JSch which accepts a password.
                  */
                 // Make sure this code is also your local file path to .ssh
-                //jsch.addIdentity("C:\\Users\\csesc_snhoakq\\.ssh\\id_rsa", ""); //carson
+                //  jsch.addIdentity("C:\\Users\\csesc_snhoakq\\.ssh\\id_rsa", ""); //carson
                 //jsch.addIdentity("/Users/lucyjin3/.ssh/id_rsa", ""); //lucy
                 //jsch.addIdentity("C:\\Users\\sydmc\\.ssh\\id_rsa", ""); //sydney
-                jsch.addIdentity(prvKey,"");
-                Session session = jsch.getSession(ciseUser, remotePeer.getHostName(), 22);
+                Session session = jsch.getSession(username, remotePeer.getHostName(), 22);
+                session.setPassword(new String(password));
                 Properties config = new Properties();
                 config.put("StrictHostKeyChecking", "no");
                 session.setConfig(config);
+
                 session.connect();
 
                 System.out.println("Session to peer# " + remotePeer.getPeerID() + " at " + remotePeer.getHostName());
 
                 Channel channel = session.openChannel("exec");
                 System.out.println("remotePeerID"+remotePeer.getPeerID());
-                ((ChannelExec) channel).setCommand(scriptPrefix + remotePeer.getPeerID());
+                //((ChannelExec) channel).setCommand("lsof -i:6001");
+                //((ChannelExec) channel).setCommand("kill 1859806 \nkill 1568769 \nkill 1010464 \nkill 195361 \nkill 183416 \n");
+                ((ChannelExec) channel).setCommand("cd CNT4007Project \n" + scriptPrefix + remotePeer.getPeerID() + " " + dir);
 
                 channel.setInputStream(null);
                 ((ChannelExec) channel).setErrStream(System.err);
@@ -135,30 +146,35 @@ public class StartRemotePeers {
                 System.out.println("Channel Connected to peer# " + remotePeer.getPeerID() + " at "
                         + remotePeer.getHostName() + " server with commands");
 
-                (new Thread() {
-                    @Override
-                    public void run() {
+                (new Thread(() -> {
+                    // TODO: Call cnt4007.peerProcess(peerID);
+                    //startPeerProcess(remotePeer.getPeerID(), dir);
+//                    peerProcess peerProcess = null;
+//                    try {
+//                        peerProcess = new peerProcess(dir + "/Common.cfg", dir + "/PeerInfo.cfg");
+//                    } catch (IOException e) {
+//                        throw new RuntimeException(e);
+//                    }
+//                    startPeerProcess(remotePeer.getPeerID());
+                    InputStreamReader inputReader = new InputStreamReader(input);
+                    BufferedReader bufferedReader = new BufferedReader(inputReader);
+                    String line = null;
 
-                        InputStreamReader inputReader = new InputStreamReader(input);
-                        BufferedReader bufferedReader = new BufferedReader(inputReader);
-                        String line = null;
+                    try {
 
-                        try {
-
-                            while ((line = bufferedReader.readLine()) != null) {
-                                System.out.println(remotePeer.getPeerID() + ">:" + line);
-                            }
-                            bufferedReader.close();
-                            inputReader.close();
-                        } catch (Exception ex) {
-                            System.out.println(remotePeer.getPeerID() + " Exception >:");
-                            ex.printStackTrace();
+                        while ((line = bufferedReader.readLine()) != null) {
+                            System.out.println(remotePeer.getPeerID() + ">:" + line);
                         }
-
-                        channel.disconnect();
-                        session.disconnect();
+                        bufferedReader.close();
+                        inputReader.close();
+                    } catch (Exception ex) {
+                        System.out.println(remotePeer.getPeerID() + " Exception >:");
+                        ex.printStackTrace();
                     }
-                }).start();
+
+                    channel.disconnect();
+                    session.disconnect();
+                })).start();
 
             } catch (JSchException e) {
 // TODO Auto-generated catch block
@@ -173,4 +189,3 @@ public class StartRemotePeers {
     }
 
 }
-

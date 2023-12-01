@@ -3,22 +3,47 @@ package cnt4007;
 import java.io.*;
 import java.net.*;
 import java.util.Date;
+import java.util.Vector;
+import java.nio.charset.StandardCharsets;
 
 import static java.lang.Integer.parseInt;
 
 // Server for each peer
 // Peers' clients that start after will connect to the server
 public class Server {
-    public static void main(String[] args) {
+    public void readMessage(Socket clientSocket) throws IOException {
+        InputStream input = clientSocket.getInputStream();
+
+        // Read the first 5 bytes (4 for length, 1 for type)
+        byte[] lengthBytes = input.readNBytes(4);
+        byte[] typeByte = input.readNBytes(1);
+
+        // Convert length bytes to String and then parse integer
+        String lengthStr = new String(lengthBytes, StandardCharsets.US_ASCII);
+        int length = Integer.parseInt(lengthStr);
+
+        // Convert type byte to char
+        char type = new String(typeByte, StandardCharsets.US_ASCII).charAt(0);
+
+        // Read the payload
+        byte[] payloadBytes = input.readNBytes(length);
+        String payload = new String(payloadBytes, StandardCharsets.US_ASCII);
+
+        System.out.println("Length: " + length);
+        System.out.println("Type: " + type);
+        System.out.println("Payload: " + payload);
+    }
+    public static void serverMain(int peerID) {
         try {
-            int port = 4444;
+            int port = 6001;
             ServerSocket serverSocket = new ServerSocket(port);
             System.out.println("Server is running and listening on port " + port);
             
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("New client connected: " + clientSocket.getInetAddress());
-                ClientHandler clientHandler = new ClientHandler(clientSocket, parseInt(args[0]));
+                System.out.println();
+                ClientHandler clientHandler = new ClientHandler(clientSocket, peerID);
                 new Thread(clientHandler).start();
             }
         } catch (IOException e) {
@@ -50,10 +75,10 @@ class ClientHandler implements Runnable {
 
             // Checking if this was the expected server
             // If it is not the correct server, connection will terminate
-            if (!clientMessage.equals("P2PFILESHARINGPROJ00000000001002")){
-                System.out.println("Received: " + clientMessage + "\n Expecting: P2PFILESHARINGPROJ0000000000" + peerID);
-                clientSocket.close();
-            }
+//            if (!clientMessage.equals("P2PFILESHARINGPROJ0000000000" + )){
+//                System.out.println("Received: " + clientMessage + "\n Expecting: P2PFILESHARINGPROJ0000000000" + peerID);
+//                clientSocket.close();
+//            }
 
             String clientID = clientMessage.substring(28);
             System.out.println("Received: " + clientMessage);
@@ -65,6 +90,8 @@ class ClientHandler implements Runnable {
             Date time = new Date();
             System.out.println("[" + time + "] Peer " + peerID + " is connected from Peer " + clientID);
 
+            // TODO: Get a clientMessage
+            // Currently clientMessage= NULL , and Handshake working!
             while ((clientMessage = reader.readLine()) != null) {
                 System.out.println("Received: " + clientMessage);
                 if (clientMessage.equals("exit")) break;

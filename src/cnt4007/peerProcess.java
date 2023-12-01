@@ -1,10 +1,8 @@
+package cnt4007;
+
 import java.io.*;
 import java.util.Arrays;
 import java.util.Vector;
-import java.net.Socket;
-import cnt4007.Server;
-import cnt4007.Client;
-import cnt4007.FileCreator;
 
 // Will be called by startRemotePeers for each peer
 public class peerProcess {
@@ -38,6 +36,9 @@ public class peerProcess {
                 Arrays.fill(bitfield,1);
             }
 
+        }
+        public int getPeerID(){
+            return this.peerID;
         }
 
     }
@@ -137,7 +138,7 @@ public class peerProcess {
 
         // Start the server and the client
         Thread serverThread = new Thread(() -> {
-            startClient();
+            startServer(config.whoAmIIDNumber);
         });
         serverThread.start();
 
@@ -150,7 +151,10 @@ public class peerProcess {
         }
 
         // Start client in the main thread or in another separate thread if desired
-        startServer();
+        Thread clientThread = new Thread(() -> {
+            startClient(config.whoAmIIDNumber, config.peerInfoVector);
+        });
+        clientThread.start();
     }
 
     // writeToFile will allow us to write to fileName at a specific index
@@ -219,8 +223,8 @@ public class peerProcess {
     public void startServer() {
 
         // For testing purposes, working with peer 1001
-        String[] args = {"1001"};
-        Server.main(args);
+        //String[] args = {Integer.toString(peerId)};
+        Server.serverMain(peerId);
 
     }
 
@@ -228,8 +232,8 @@ public class peerProcess {
     public void startClient(){
 
         // For testing purposes, working with peer 1002
-        String[] args = {"1002"};
-        Client.main(args);
+        //String[] args = {Integer.toString(peerId)};
+        Client.clientMain(peerId, peerInfoVector);
     }
 
     // Used to create the file for peers that do not have the file
@@ -248,20 +252,17 @@ public class peerProcess {
     public static void main(String[] args) {
 
         try {
-            //peerProcess config = new peerProcess("project_config_file_small\\Common.cfg", "project_config_file_small\\PeerInfo.cfg");
-            peerProcess config = new peerProcess("project_config_file_small/Common.cfg", "project_config_file_small/PeerInfo.cfg");//lucy mac
+            //cnt4007.peerProcess config = new cnt4007.peerProcess("project_config_file_small\\Common.cfg", "project_config_file_small\\PeerInfo.cfg");
+            peerProcess config = new peerProcess(args[1] + "/Common.cfg", args[1] + "/PeerInfo.cfg");//lucy mac
 
-            if(args.length > 0) {
-                config.whoAmIIDNumber = Integer.parseInt(args[0]);
-            } else {
-                System.out.println("Please provide a valid ID number as an argument.");
-                config.whoAmIIDNumber = 1001;
-            }
+
+            config.whoAmIIDNumber = Integer.parseInt(args[0]);
+
 
             config.createFile();
             config.checkIfFileWrittenCorrectly();
-            config.printConfigInfo();
-            config.printPeerInfo();
+            //config.printConfigInfo();
+            //config.printPeerInfo();
 
             // Start the server and the client for each peer
             config.makeConnections(config);
