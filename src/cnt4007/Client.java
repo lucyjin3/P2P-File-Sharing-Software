@@ -3,6 +3,7 @@ package cnt4007;
 import java.io.*;
 import java.net.*;
 import java.util.Date;
+import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
 import java.nio.charset.StandardCharsets;
 
@@ -23,11 +24,13 @@ public class Client {
         private final String clientId;
         // Reference to store exceptions that occur during connection
         private final AtomicReference<Exception> exceptionRef;
+        private final peerProcess.PeerInfo server;
+
 
         // Constructor
-        public ClientConnection(String host, int port, String clientId, AtomicReference<Exception> exceptionRef) {
-            this.host = host;
-            this.port = port;
+        public ClientConnection(String clientId, peerProcess.PeerInfo server, AtomicReference<Exception> exceptionRef) {
+            this.host = server.peerHostName;
+            this.port = server.peerPortNumber;
             this.clientId = clientId;
             this.server = server;
             this.exceptionRef = exceptionRef;
@@ -39,7 +42,7 @@ public class Client {
 
                 // Establish connectin with server
                 Socket socket = new Socket(host, port);
-                System.out.println("Connected to the server");
+                System.out.println(clientId + " Connected to the server" + this.server.getPeerID());
 
                 OutputStream output = socket.getOutputStream();
                 PrintWriter writer = new PrintWriter(output, true);
@@ -54,8 +57,9 @@ public class Client {
                 serverMessage = reader.readLine();
 
                 // Checking if this was the expected server
-                if (!serverMessage.equals("P2PFILESHARINGPROJ00000000001001")) {
-                    System.out.println("Received: " + serverMessage + "\n Expecting: P2PFILESHARINGPROJ0000000000" + clientId);
+                // When we do the for loop, the peerId of the one we are trying to connect will be the end
+                if (!serverMessage.equals("P2PFILESHARINGPROJ0000000000" + server.peerID)) {
+                    System.out.println("Received: " + serverMessage + "\n Expecting: P2PFILESHARINGPROJ0000000000" + server.peerID);
                 }
                 String lastFourServerID = serverMessage.substring(serverMessage.length()-4);
 
@@ -64,7 +68,7 @@ public class Client {
                 System.out.println("[" + time + "] Peer " + clientId + " makes a connection to Peer " + lastFourServerID);
                 System.out.println("Received: " + serverMessage);
 
-                while ((serverMessage = userInput.readLine()) != null) {
+                while ((serverMessage = userInput.readLine()) == null) {
 
                     // TODO: Connect to Message.java
                     writer.println(serverMessage);
@@ -107,36 +111,40 @@ public class Client {
         System.out.println("Payload: " + payload);
     }
 
-    public static void main(String[] args) {
+    public static void clientMain(int peerID, Vector<peerProcess.PeerInfo> peerInfoVector) {
 
         // TODO: Create a for loop to connect to all peers that were started prior
+        for (int i = 0; i < peerInfoVector.size(); i++) {
+            if (peerInfoVector.get(i).getPeerID() == peerID) {
+                break;
+            }
 
-        // Define how many times you want to retry
-        final int MAX_RETRIES = 5;
-        // Wait 5 seconds before retrying
-        final int RETRY_DELAY_MS = 5000;
+            // Define how many times you want to retry
+            final int MAX_RETRIES = 5;
+            // Wait 5 seconds before retrying
+            final int RETRY_DELAY_MS = 5000;
 
-        String host = "localhost";
+            String host = "localhost";
 
-        // port will need to be configurable
-        // will be set by parameters most likely
-        int port = 4444;
-        int retryCount = 0;
-        AtomicReference<Exception> exceptionRef = new AtomicReference<>(null);
-        // Handle possible delays in previous peer servers starting up
-        while (retryCount < MAX_RETRIES) {
+            // port will need to be configurable
+            // will be set by parameters most likely
+            int port = 4444;
+            int retryCount = 0;
+            AtomicReference<Exception> exceptionRef = new AtomicReference<>(null);
+            // Handle possible delays in previous peer servers starting up
+            while (retryCount < MAX_RETRIES) {
 
                 // Starts thread connection
                 // Will start ClientConnection for each peer client as they connect to servers
-                Thread connectionThread = new Thread(new ClientConnection(host, port, args[0],exceptionRef));
+                Thread connectionThread = new Thread(new ClientConnection(Integer.toString(peerID), peerInfoVector.get(i),exceptionRef));
                 connectionThread.start();
-                try {
-                    // Waits for connection to finish
-                    connectionThread.join();
-                }   catch (InterruptedException ex) {
-                    System.out.println("Thread was interrupted: " + ex.getMessage());
-                    return;
-                }
+//                try {
+//                    // Waits for connection to finish
+//                    // connectionThread.join();
+//                } catch (InterruptedException ex) {
+//                    System.out.println("Thread was interrupted: " + ex.getMessage());
+//                    return;
+//                }
 
                 // Checks if the thread has an exception
                 // Will retry is an exception is found after 5 secs
@@ -164,6 +172,7 @@ public class Client {
                     break;
                 }
 
+            }
         }
     }
 }
