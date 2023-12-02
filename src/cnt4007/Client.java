@@ -24,6 +24,7 @@ public class Client {
         private final String clientId;
         // Reference to store exceptions that occur during connection
         private final AtomicReference<Exception> exceptionRef;
+        private final peerProcess config;
         private final peerProcess.PeerInfo server;
 
 
@@ -44,12 +45,12 @@ public class Client {
                 Socket socket = new Socket(host, port);
                 System.out.println(clientId + " Connected to the server" + this.server.getPeerID());
 
-                OutputStream output = socket.getOutputStream();
+                ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
                 PrintWriter writer = new PrintWriter(output, true);
-                InputStream input = socket.getInputStream();
+                ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
                 BufferedReader reader = new BufferedReader(new InputStreamReader(input));
 
-                BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
+
                 String serverMessage;
 
                 // Handshake sent by client
@@ -62,6 +63,7 @@ public class Client {
                     System.out.println("Received: " + serverMessage + "\n Expecting: P2PFILESHARINGPROJ0000000000" + server.peerID);
                 }
                 String lastFourServerID = serverMessage.substring(serverMessage.length()-4);
+
 
                 Date time = new Date();
                // String serverID = serverMessage.substring(28);
@@ -111,7 +113,7 @@ public class Client {
         System.out.println("Payload: " + payload);
     }
 
-    public static void clientMain(int peerID, Vector<peerProcess.PeerInfo> peerInfoVector) {
+    public static void clientMain(int peerID, Vector<peerProcess.PeerInfo> peerInfoVector, peerProcess config) {
 
         // TODO: Create a for loop to connect to all peers that were started prior
         for (int i = 0; i < peerInfoVector.size(); i++) {

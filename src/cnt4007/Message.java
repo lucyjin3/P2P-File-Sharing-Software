@@ -4,13 +4,12 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Random;
+import java.util.*;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
-import java.util.Map;
+
 
 
 public class Message {
@@ -23,10 +22,13 @@ public class Message {
     public byte[] notInterestedMessage;
     public byte[] lengthBytes;
     public byte[] typeByte;
+    public int[] bitFieldFromMsg;
 
     public byte[] payloadBytes;
+    public String payload;
 
-    public String messageType;
+    public int messageType;
+    public int index;
 
     public int length;
 
@@ -34,7 +36,8 @@ public class Message {
     public Map<Integer, String> messageTypeMap;
 
     // Constructor to create a message with a specified message type
-    public Message(byte messageType) {
+    public Message() {
+        messageTypeMap = new HashMap<>();
         // Message length is 4 bytes, plus 1 byte for the message type
         messageTypeMap.put(0, "choke");
         messageTypeMap.put(1, "unchoke");
@@ -58,25 +61,40 @@ public class Message {
         notInterestedMessage[4] = 3; // 5th byte is 3
 
     }
-    public void setMessage(InputStream input) throws IOException{
-        // Read the first 5 bytes (4 for length, 1 for type)
-        lengthBytes = input.readNBytes(4);
-        typeByte = input.readNBytes(1);
+    public void receiveMessage(ObjectInputStream input) throws IOException {
 
-        // Convert length bytes to String and then parse integer
-        String lengthStr = new String(lengthBytes, StandardCharsets.US_ASCII);
-        length = Integer.parseInt(lengthStr);
-
-        // Convert type byte to char
-        messageType = String.valueOf(new String(typeByte, StandardCharsets.US_ASCII).charAt(0));
-
-        // Read the payload
-        payloadBytes = input.readNBytes(length);
-        String payload = new String(payloadBytes, StandardCharsets.US_ASCII);
+        System.out.println("Please");
+        byte[] lengthBytes = input.readNBytes(4);
+        ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes);
+        length = lengthBuffer.getInt();
         System.out.println("Length: " + length);
-        System.out.println("Type: " + messageType);
-        System.out.println("Payload: " + payload);
+
+        byte[] typeBytes = input.readNBytes(1);
+        messageType = typeBytes[0] & 0xFF;
+
+        System.out.println("Message type: " + messageType);
+
+        // Process the payload...
+        payloadBytes = input.readNBytes(length);
+        if (messageType == 5) {
+            // Process bitfield message type
+            bitFieldFromMsg = unpackBitfield(payloadBytes, length * 8);
+        }
     }
+    public int[] unpackBitfield(byte[] payloadBytes, int bitfieldSize) {
+        int[] bitfield = new int[bitfieldSize];
+
+        for (int i = 0; i < payloadBytes.length; i++) {
+            for (int j = 0; j < 8; j++) {
+                int bitIndex = i * 8 + j;
+                if (bitIndex < bitfield.length) {
+                    bitfield[bitIndex] = (payloadBytes[i] >> (7 - j)) & 1;
+                }
+            }
+        }
+        return bitfield;
+    }
+
 
     public byte[] createHaveMessage(int pieceRequested){
         ByteBuffer buffer = ByteBuffer.allocate(9);
@@ -86,15 +104,29 @@ public class Message {
         return buffer.array();
     };
 
-    public byte[] createBitfieldMessage(int[] bitfield){
-        ByteBuffer buffer = ByteBuffer.allocate(5 + bitfield.length);
-        buffer.putInt(bitfield.length);
+    public byte[] createBitfieldMessage(int[] bitfield) {
+        // Calculate the number of bytes needed to represent the bitfield (8 bits per byte)
+        int numBytes = (bitfield.length + 7) / 8;
+
+        ByteBuffer buffer = ByteBuffer.allocate(5 + numBytes);
+        buffer.putInt(numBytes); // Note that we're putting numBytes here, not bitfield.length
         buffer.put((byte)5); // Message type for bitfield
-        for (int bit : bitfield) {
-            buffer.put((byte)bit);
+
+        byte currentByte = 0;
+        for (int i = 0; i < bitfield.length; i++) {
+            // Set the bit in the current byte
+            currentByte |= (bitfield[i] << (7 - (i % 8)));
+
+            // If this is the last bit for the current byte, or the last bit overall
+            if (i % 8 == 7 || i == bitfield.length - 1) {
+                buffer.put(currentByte);
+                currentByte = 0; // Reset for the next byte
+            }
         }
+
         return buffer.array();
-    };
+    }
+
 
     public byte[] createRequestMessage(int index){
         ByteBuffer buffer = ByteBuffer.allocate(9);

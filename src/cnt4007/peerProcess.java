@@ -3,6 +3,7 @@ package cnt4007;
 import java.io.*;
 import java.util.Arrays;
 import java.util.Vector;
+import java.util.Random;
 
 // Will be called by startRemotePeers for each peer
 public class peerProcess {
@@ -10,10 +11,12 @@ public class peerProcess {
     public int unchokingInterval;
     public int optimisticUnchokingInterval;
     public String fileName;
+    public String outputFilePath;
     public int fileSize;
     public int pieceSize;
     Vector<PeerInfo> peerInfoVector = new Vector<>();
     public int whoAmIIDNumber;
+    public int numPieces;
     public static int numberOfPieces;
     public boolean iHaveFile;
 
@@ -44,7 +47,7 @@ public class peerProcess {
             }
 
         }
-        public int getPeerID(){
+        public synchronized int getPeerID(){
             return this.peerID;
         }
 
@@ -96,6 +99,7 @@ public class peerProcess {
                     optimisticUnchokingInterval = Integer.parseInt(parts[1]);
                 } else if (parts[0].equals("FileName")) {
                     fileName = parts[1];
+                    outputFilePath = fileName;
                 } else if (parts[0].equals("FileSize")) {
                     fileSize = Integer.parseInt(parts[1]);
                 } else if (parts[0].equals("PieceSize")) {
@@ -104,6 +108,7 @@ public class peerProcess {
             }
 
             numberOfPieces = (fileSize + pieceSize - 1) / pieceSize;
+            numPieces = (fileSize + pieceSize - 1) / pieceSize;
         } finally {
             if (reader != null) {
                 reader.close();
@@ -138,7 +143,7 @@ public class peerProcess {
 
     }
 
-    // This will start the server and client for each peer
+    // This will start the server and client for each peerst
     public void makeConnections(peerProcess config) {
 
         // Starts thread for the server and the client
@@ -157,29 +162,9 @@ public class peerProcess {
 
         // Start client in the main thread or in another separate thread if desired
         Thread clientThread = new Thread(() -> {
-            startClient(config.whoAmIIDNumber, config.peerInfoVector);
+            startClient(config.whoAmIIDNumber, config.peerInfoVector, config);
         });
         clientThread.start();
-    }
-
-    // writeToFile will allow us to write to fileName at a specific index
-    public static void writeToFile(String fileName, int pieceSize, int pieceNumber, byte[] data) throws Exception {
-
-        // Calculate the position in the file where you want to start writing
-        long position = (long) pieceNumber * pieceSize;
-
-        // By using synchronized key word it allows for singular access to the file
-        // This prevents the possibility of different threads writing to the same file
-        // at the same time
-        synchronized (fileName.intern()) {
-            try (RandomAccessFile raf = new RandomAccessFile(fileName, "rw")) {
-                // This finds the starting point for a piece
-                raf.seek(position);
-                // After finding the starting point it writes the data for that piece
-                // to the file
-                raf.write(data);
-            }
-        }
     }
 
     public void checkIfFileWrittenCorrectly() {
@@ -234,11 +219,9 @@ public class peerProcess {
     }
 
     // Start the Client for the peer
-    public static void startClient(int peerId,Vector<PeerInfo> peerInfoVector) {
+    public static void startClient(int peerId,Vector<PeerInfo> peerInfoVector, peerProcess config) {
 
-        // For testing purposes, working with peer 1002
-        //String[] args = {Integer.toString(peerId)};
-        Client.clientMain(peerId, peerInfoVector);
+        Client.clientMain(peerId, peerInfoVector, config);
     }
 
     // Used to create the file for peers that do not have the file
@@ -250,6 +233,7 @@ public class peerProcess {
             String[] createFileArray = new String[2];
             createFileArray[0] = whoAmIIDNumber + "/" + fileName;
             createFileArray[1] = Integer.toString(fileSize);
+            outputFilePath = (createFileArray[0]);
             FileCreator.main(createFileArray);
         }
     }
@@ -280,8 +264,7 @@ public class peerProcess {
     public static void main(String[] args) {
 
         try {
-            //cnt4007.peerProcess config = new cnt4007.peerProcess("project_config_file_small\\Common.cfg", "project_config_file_small\\PeerInfo.cfg");
-            peerProcess config = new peerProcess(args[1] + "/Common.cfg", args[1] + "/PeerInfo.cfg");//lucy mac
+           peerProcess config = new peerProcess(args[1] + "/Common.cfg", args[1] + "/PeerInfo.cfg");//lucy mac
 
 
             config.whoAmIIDNumber = Integer.parseInt(args[0]);
@@ -289,16 +272,6 @@ public class peerProcess {
 
             config.createFile();
             config.checkIfFileWrittenCorrectly();
-            //config.printConfigInfo();
-            //config.printPeerInfo();
-
-            // Start the server and the client for each peer
-            /*if(config.getPeerInfoVector.get(config.peerInfoVector.size() - 1).peerID != config.whoAmIIDNumber){
-                startServer();
-            }
-            if(config.getPeerInfoVector().get(0).peerID != config.whoAmIIDNumber){
-                startClient();
-            }*/
             config.makeConnections(config);
 
         } catch (IOException e) {

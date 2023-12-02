@@ -129,7 +129,7 @@ public class StartRemotePeers {
 
                 session.connect();
 
-                System.out.println("Session to peer# " + remotePeer.getPeerID() + " at " + remotePeer.getHostName());
+              //  System.out.println("Session to peer # " + remotePeer.getPeerID() + " at " + remotePeer.getHostName());
 
                 Channel channel = session.openChannel("exec");
                 System.out.println("remotePeerID"+remotePeer.getPeerID());

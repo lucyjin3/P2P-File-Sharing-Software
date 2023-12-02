@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
 // Creates (or opens) the filename file and sets it to a file a set size
 // Set by the fileSize parameter
 public class FileCreator {
-    public static void writeToFile(int numPieces, int index, byte[] payload, String filePath) {
+    public static synchronized void writeToFile(int numPieces, int index, byte[] payload, String filePath) {
         long position = (long) index * numPieces;
 
         RandomAccessFile file = null;
@@ -29,7 +29,7 @@ public class FileCreator {
             }
         }
     }
-    public static byte[] readFile(int numPieces, int index, int pieceSize, String filePath) {
+    public static synchronized byte[] readFile(int numPieces, int index, int pieceSize, String filePath) {
         // Calculate the start position in the file
         long position = (long) index * numPieces;
 

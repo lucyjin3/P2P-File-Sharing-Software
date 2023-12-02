@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.Vector;
 import java.nio.charset.StandardCharsets;
 
+import static java.lang.Integer.getInteger;
 import static java.lang.Integer.parseInt;
 
 // Server for each peer
@@ -72,14 +73,6 @@ class ClientHandler implements Runnable {
 
             // Send simple handshake
             clientMessage = reader.readLine();
-
-            // Checking if this was the expected server
-            // If it is not the correct server, connection will terminate
-//            if (!clientMessage.equals("P2PFILESHARINGPROJ0000000000" + )){
-//                System.out.println("Received: " + clientMessage + "\n Expecting: P2PFILESHARINGPROJ0000000000" + peerID);
-//                clientSocket.close();
-//            }
-
             String clientID = clientMessage.substring(28);
             System.out.println("Received: " + clientMessage);
 
