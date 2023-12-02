@@ -81,7 +81,7 @@ public class StartRemotePeers {
         System.out.print("Enter your password: ");
         String password = scanner.nextLine(); // Note: This will not hide the password input
 
-        System.out.println("Pick a file: \n[1] project_config_file_large \n[2] project_config_file_small");
+        System.out.println("Pick a file: \n[1] project_config_file_large \n[2] project_config_file_small\n[3] project_config_test_file");
         String userInput = scanner.nextLine();
 
         if(userInput.equals("1")){
@@ -90,6 +90,9 @@ public class StartRemotePeers {
         }else if (userInput.equals("2")){
             dir = "project_config_file_small";
             file = new File("project_config_file_small/PeerInfo.cfg");
+        }else if (userInput.equals("3")){
+            dir = "project_config_test_file";
+            file = new File("project_config_test_file/PeerInfo.cfg");
         }else{
             System.out.println("Invalid option");
             return;
@@ -132,9 +135,9 @@ public class StartRemotePeers {
               //  System.out.println("Session to peer # " + remotePeer.getPeerID() + " at " + remotePeer.getHostName());
 
                 Channel channel = session.openChannel("exec");
-                System.out.println("remotePeerID"+remotePeer.getPeerID());
+             //   System.out.println("remotePeerID"+remotePeer.getPeerID());
                 //((ChannelExec) channel).setCommand("lsof -i:6001");
-                //((ChannelExec) channel).setCommand("kill 1859806 \nkill 1568769 \nkill 1010464 \nkill 195361 \nkill 183416 \n");
+                //((ChannelExec) channel).setCommand("kill 3615241 \nkill 3154229 \n");
                 ((ChannelExec) channel).setCommand("cd CNT4007Project \n" + scriptPrefix + remotePeer.getPeerID() + " " + dir);
 
                 channel.setInputStream(null);

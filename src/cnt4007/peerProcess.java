@@ -50,10 +50,51 @@ public class peerProcess {
         public synchronized int getPeerID(){
             return this.peerID;
         }
+        public synchronized void setBitfield(int index) {
+            this.bitfield[index] = 1;
+        }
+        public synchronized int readBitfield(int index) {
+            return this.bitfield[index];
+        }
+
+
+        public synchronized int[] getBitfield(){
+            return this.bitfield;
+        }
+        public int getRandomIndexWith1(int [] otherBitfield){
+            for (int i = 0; i < bitfield.length; i++){
+                if (bitfield[i]==1){
+                    break;
+                }
+                if (i == bitfield.length -1){
+                    return -1;
+                }
+            }
+            Random random = new Random();
+
+            if(Arrays.equals(bitfield, otherBitfield)){
+                return -1;
+            }
+
+
+            while (true) {
+                int randomIndex = random.nextInt(bitfield.length);
+                if (bitfield[randomIndex] == 1 && otherBitfield[randomIndex]==0) {
+                    return randomIndex;
+                }
+            }
+        }
 
     }
 
-
+    public synchronized PeerInfo getCertainPeer(int peerID){
+        for (PeerInfo peer : peerInfoVector){
+            if (peer.peerID == peerID){
+                return peer;
+            }
+        }
+        return null;
+    }
     // printConfigInfo() outputs the information in the configuration file
     // Used for testing purposes
     public void printConfigInfo() {
@@ -148,7 +189,7 @@ public class peerProcess {
 
         // Starts thread for the server and the client
         Thread serverThread = new Thread(() -> {
-            startServer(config.whoAmIIDNumber);
+            startServer(config.whoAmIIDNumber, config.getPeerInfoVector(), config);
         });
         serverThread.start();
 
@@ -210,11 +251,9 @@ public class peerProcess {
     }
 
     // Start the Server for the peer
-    public static void startServer(int peerId) {
+    public static void startServer(int peerId, Vector<peerProcess.PeerInfo> peerInfoVector, peerProcess config) {
 
-        // For testing purposes, working with peer 1001
-        //String[] args = {Integer.toString(peerId)};
-        Server.serverMain(peerId);
+        Server.serverMain(peerId, peerInfoVector, config);
 
     }
 
@@ -237,29 +276,6 @@ public class peerProcess {
             FileCreator.main(createFileArray);
         }
     }
-
-    /*
-        for (int i = 0; i < peerVector.size(); i++){
-
-            if (peerVector[i] = whoAmI){
-                break;
-            }
-            connect(peerVector[i]);
-        }
-    public void connectPeers(int peerId=3){
-        int totalNumPeers= 5;
-
-        for(int i = 1; i < peerId; i++{
-            connectPeer();
-        }
-
-        for ( int i = 2; i<= totalNumPeers; i++){
-            for (int j = i-1; j >= 1 ;j --){
-            connectPeer();
-        }
-    }
-
-     */
 
     public static void main(String[] args) {
 

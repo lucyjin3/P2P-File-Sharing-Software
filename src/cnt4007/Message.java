@@ -48,6 +48,7 @@ public class Message {
         messageTypeMap.put(6, "request");
         messageTypeMap.put(7, "piece");
 
+
         chokeMessage = new byte[5];
         chokeMessage[4] = 0; // 5th byte is 0
 
@@ -96,6 +97,12 @@ public class Message {
     }
 
 
+    public byte[] getInterestedMessage(){
+        return this.interestedMessage;
+    }
+    public byte[] getNotInterestedMessage(){
+        return this.notInterestedMessage;
+    }
     public byte[] createHaveMessage(int pieceRequested){
         ByteBuffer buffer = ByteBuffer.allocate(9);
         buffer.putInt(4);
