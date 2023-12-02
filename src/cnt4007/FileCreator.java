@@ -6,8 +6,11 @@ import java.nio.ByteBuffer;
 // Creates (or opens) the filename file and sets it to a file a set size
 // Set by the fileSize parameter
 public class FileCreator {
-    public static synchronized void writeToFile(int numPieces, int index, byte[] payload, String filePath) {
-        long position = (long) index * numPieces;
+    public static synchronized void writeToFile(int pieceSize, int index, byte[] payload, String filePath) {
+        System.out.println("Write to file was called");
+        long position = (long) index * pieceSize;
+        System.out.println("file position that was written to: " + position);
+
 
         RandomAccessFile file = null;
         try {
@@ -30,10 +33,12 @@ public class FileCreator {
                 }
             }
         }
+        System.out.println("END OF WRITE TO FILE");
     }
-    public static synchronized byte[] readFile(int numPieces, int index, int pieceSize, String filePath) {
+    public static synchronized byte[] readFile(int index, int pieceSize, String filePath) {
+        System.out.println("File being read from: " + filePath);
         // Calculate the start position in the file
-        long position = (long) index * numPieces;
+        long position = (long) index * pieceSize;
 
         RandomAccessFile file = null;
         byte[] data = new byte[pieceSize];
@@ -80,7 +85,7 @@ public class FileCreator {
             RandomAccessFile raf = new RandomAccessFile(args[0], "rw");
 
             // Set the file size based on the passed argument
-            raf.setLength(size);
+          //  raf.setLength(size);
 
             raf.close();
 
