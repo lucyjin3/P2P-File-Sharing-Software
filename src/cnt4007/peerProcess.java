@@ -87,6 +87,13 @@ public class peerProcess {
 
     }
 
+    public synchronized int getPieceSize(){
+        return pieceSize;
+    }
+    public synchronized String getOutputFilePath(){
+        return outputFilePath;
+    }
+
     public synchronized PeerInfo getCertainPeer(int peerID){
         for (PeerInfo peer : peerInfoVector){
             if (peer.peerID == peerID){
@@ -264,8 +271,8 @@ public class peerProcess {
     }
 
     // Used to create the file for peers that do not have the file
-    public void createFile() {
-        if (!iHaveFile) {
+    public void createFile(peerProcess config) {
+        if (!config.iHaveFile) {
 
             // Create a new directory for each peer that does not have the file
             new File(Integer.toString(whoAmIIDNumber)).mkdirs();
@@ -284,10 +291,10 @@ public class peerProcess {
 
 
             config.whoAmIIDNumber = Integer.parseInt(args[0]);
+            System.out.println(config.peerInfoVector.get(0).peerPortNumber);
 
-
-            config.createFile();
-            config.checkIfFileWrittenCorrectly();
+            config.createFile(config);
+            //config.checkIfFileWrittenCorrectly();
             config.makeConnections(config);
 
         } catch (IOException e) {

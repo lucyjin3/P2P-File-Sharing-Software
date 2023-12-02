@@ -92,27 +92,44 @@ public class Client {
                     String binaryString = String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0');
                     System.out.print(binaryString + " ");
                 }
+                Vector<Integer> indexVector = new Vector<>();
 
                 output.writeObject(bitFieldMSG);
                 output.flush();
 
-
+                System.out.println("Loop entered on client side:");
                 while(continueLoop) {
-                    System.out.println("Loop entered on client side:");
+                    // Check if all the files are completed
+                    for (peerProcess.PeerInfo peer : peerInfoVector) {
+                        continueLoop = false;
+                        if (Arrays.stream(peer.getBitfield()).anyMatch(bit -> bit == 0)) {
+                            continueLoop = true;
+                            break;
+                        }
+                    }
+                    if(!continueLoop){
+                        break;
+                    }
                     try {
                         receivedBytes = (byte[]) input.readObject();
                     } catch (ClassNotFoundException e) {
+                        socket.close();
+                        Thread.currentThread().interrupt();
                         System.out.println("Error: " + e.getMessage());
                         // Sets the custom "ServerNotReadyException"
                         // Client is connecting to server that has not been started yet
                         exceptionRef.set(new ServerNotReadyException("Server is not ready yet."));
+                    } catch (EOFException eof){
+                        socket.close();
+                        Thread.currentThread().interrupt();
+                        System.out.println("Error: " + eof.getMessage());
                     }
 
 
                     // Send a byte array as an object
-                    if (receivedBytes.length != 0) {
 
-                    }
+
+
                     ByteBuffer buffer = ByteBuffer.wrap(receivedBytes);
 
                     // Extract the first four bytes as an integer
@@ -127,9 +144,7 @@ public class Client {
                     // Extract the remaining bytes as specified by 'length'
                     byte[] content = new byte[length];
                     buffer.get(content);
-                    if (messageTypeInt == 5) {
-                        int[] bitfieldTEST = msgObj.unpackBitfield(content, content.length * 8);
-
+                    msgObj.receiveMessage(length, messageTypeInt, content);
 
                         int option = msgObj.messageType;
                         switch (option) {
@@ -162,13 +177,13 @@ public class Client {
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘have’ message from " + lastFourServerID);
 
                                 // Only used for testing purposes. Will be moved to unchoked
-                                if (clientInfo.bitfield[Integer.parseInt(msgObj.payload)] == 0) {
-                                    output.write(msgObj.createRequestMessage(Integer.parseInt(msgObj.payload)));
-                                    msgObj.index = Integer.parseInt(msgObj.payload);
-                                } else if (isInterestedAtIndex(clientInfo.getBitfield(), serverInfo.getBitfield(), Integer.parseInt(msgObj.payload))) {
+                                if (clientInfo.bitfield[msgObj.payloadInt] == 0) {
+                                    output.writeObject(msgObj.createRequestMessage(msgObj.payloadInt));
+                                    msgObj.index = msgObj.payloadInt;
+                                } else if (isInterestedAtIndex(clientInfo.getBitfield(), serverInfo.getBitfield(), msgObj.payloadInt)) {
                                     //Needed to be updated later during choke and unchoke
                                     //Don't always send interested message
-                                    output.write(msgObj.getInterestedMessage());
+                                    output.writeObject(msgObj.getInterestedMessage());
                                 } else {
                                     output.write(msgObj.getNotInterestedMessage());
                                 }
@@ -176,36 +191,44 @@ public class Client {
                             case 5: // BITFIELD
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘bitfield’ from " + lastFourServerID);
-                                threadBitfield = msgObj.bitFieldFromMsg;
+
                                 if (isInterested(clientInfo.getBitfield(), serverInfo.getBitfield())) {
-                                    output.write(msgObj.getInterestedMessage());
+                                    output.writeObject(msgObj.getInterestedMessage());
                                 } else {
-                                    output.write(msgObj.getNotInterestedMessage());
+                                    output.writeObject(msgObj.getNotInterestedMessage());
                                 }
 
                                 break;
                             case 6: // REQUEST
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘request’ message from " + lastFourServerID);
-                                output.write(msgObj.createPieceMessage(Integer.parseInt(msgObj.payload), FileCreator.readFile(config.numPieces, Integer.parseInt(msgObj.payload), config.pieceSize, config.outputFilePath)));
-                                serverInfo.bitfield[Integer.parseInt(msgObj.payload)] = 1;
+                                output.writeObject(msgObj.createPieceMessage(msgObj.payloadInt, FileCreator.readFile(msgObj.payloadInt, config.getPieceSize(), config.getOutputFilePath())));
+                                serverInfo.bitfield[msgObj.payloadInt] = 1;
                                 break;
                             case 7: // PIECE
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘piece' from " + lastFourServerID);
-                                FileCreator.writeToFile(config.numPieces, msgObj.index, msgObj.payloadBytes, config.outputFilePath);
-                                clientInfo.setBitfield(msgObj.index);
-                                threadBitfield[msgObj.index] = 1;
+                                System.out.println("Piece Index: " + msgObj.payloadInt);
+
+                                System.out.println("File Path: " + config.getOutputFilePath());
+                                indexVector.add(msgObj.payloadInt);
+                                FileCreator.writeToFile(config.getPieceSize(), msgObj.payloadInt, msgObj.payloadBytes, config.getOutputFilePath());
+                                clientInfo.setBitfield(msgObj.payloadInt);
+                                threadBitfield[msgObj.payloadInt] = 1;
                                 break;
                             default:
                                 System.out.println("Invalid option. Please select a number between 0 and 7.");
                                 break;
                         }
 
-                        // Used for testing to keep moving
-                        for (int i = 0; i < serverInfo.bitfield.length; i++) {
-                            if (serverInfo.bitfield[i] == 1 && clientInfo.bitfield[i] == 0) {
-                                output.write(msgObj.interestedMessage);
+
+                        if(messageTypeInt == 7) {
+                            // Used for testing to keep moving
+                           for (int i = 0; i < serverInfo.bitfield.length; i++) {
+                                if (serverInfo.bitfield[i] == 1 && clientInfo.bitfield[i] == 0) {
+                                    output.writeObject(msgObj.interestedMessage);
+                                    break;
+                                }
                             }
                         }
 
@@ -213,30 +236,32 @@ public class Client {
                             int index = newPiece(threadBitfield, clientInfo.getBitfield());
                             if (index != -1) {
                                 threadBitfield[index] = 1;
+                                output.writeObject(msgObj.createHaveMessage(index));
                             }
-                            output.write(msgObj.createHaveMessage(index));
+
                         }
-                        // Check if all the files are completed
-                        for (peerProcess.PeerInfo peer : peerInfoVector) {
-                            continueLoop = false;
-                            if (Arrays.stream(peer.getBitfield()).anyMatch(bit -> bit == 0)) {
-                                continueLoop = true;
-                                break;
-                            }
-                        }
-                    }else{
-                        System.out.println("Nothing received from server");
-                    }
+                        msgObj.messageType = -1;
+                        receivedBytes = null;
+
                 }
+                int countIndexes = 0;
+                for (Integer index : indexVector){
+                    System.out.println("Index: " + index);
+                    countIndexes++;
+                }
+                System.out.println("Count of indexes: " + countIndexes);
 
-
+                System.out.println("All files are downloaded");
                 socket.close();
+                Thread.currentThread().interrupt();
 
             }catch (IOException e) {
-                System.out.println("Error: " + e.getMessage());
+                Thread.currentThread().interrupt();
+                return;
+                //System.out.println("Error: " + e.getMessage());
                 // Sets the custom "ServerNotReadyException"
                 // Client is connecting to server that has not been started yet
-                exceptionRef.set(new ServerNotReadyException("Server is not ready yet."));
+                //exceptionRef.set(new ServerNotReadyException("Server is not ready yet."));
             }
         }
         public peerProcess.PeerInfo getSpecificPeer(Vector<peerProcess.PeerInfo> peerInfoVector, int peerID){
@@ -259,6 +284,7 @@ public class Client {
         public boolean isInterestedAtIndex(int [] clientBitfield, int[] serverBitfield, int index){
             return clientBitfield[index] != serverBitfield[index] && clientBitfield[index] == 0;
         }
+
         public int newPiece(int[] threadBitfield, int[] clientBitfield){
             for(int i = 0; i < clientBitfield.length; i++){
                 if(threadBitfield[i] != clientBitfield[i] && clientBitfield[i] == 1){

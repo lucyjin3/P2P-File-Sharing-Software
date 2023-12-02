@@ -25,7 +25,7 @@ public class Message {
     public int[] bitFieldFromMsg;
 
     public byte[] payloadBytes;
-    public String payload;
+    public int payloadInt;
 
     public int messageType;
     public int index;
@@ -62,25 +62,48 @@ public class Message {
         notInterestedMessage[4] = 3; // 5th byte is 3
 
     }
-    public void receiveMessage(ObjectInputStream input) throws IOException {
+    public void receiveMessage(int length, int type, byte[] payloadBytes) throws IOException {
 
         System.out.println("Please");
-        byte[] lengthBytes = input.readNBytes(4);
-        ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes);
-        length = lengthBuffer.getInt();
-        System.out.println("Length: " + length);
+//        byte[] lengthBytes = input.readNBytes(4);
+//        ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes);
+        this.length = length;
+        //System.out.println("Length: " + length);
 
-        byte[] typeBytes = input.readNBytes(1);
-        messageType = typeBytes[0] & 0xFF;
+        //byte[] typeBytes = input.readNBytes(1);
+        this.messageType = type;
 
-        System.out.println("Message type: " + messageType);
+        //System.out.println("Message type: " + messageType);
 
         // Process the payload...
-        payloadBytes = input.readNBytes(length);
-        if (messageType == 5) {
-            // Process bitfield message type
-            bitFieldFromMsg = unpackBitfield(payloadBytes, length * 8);
+        this.payloadBytes = payloadBytes;
+        if (messageType == 4){ //HAVE MESSAGE
+            payloadInt = ((payloadBytes[0] & 0xFF) << 24) | ((payloadBytes[1] & 0xFF) << 16) |
+                    ((payloadBytes[2] & 0xFF) << 8) | (payloadBytes[3] & 0xFF);
         }
+        else if (messageType == 5){ //BITFIELD MESSAGE
+            // Process bitfield message type
+            bitFieldFromMsg = unpackBitfield(this.payloadBytes, length * 8);
+        }
+        else if (messageType == 6){ //REQUEST MESSAGE
+            // Process bitfield message type
+            // This will be the index of the piece
+            payloadInt = ((payloadBytes[0] & 0xFF) << 24) | ((payloadBytes[1] & 0xFF) << 16) |
+                    ((payloadBytes[2] & 0xFF) << 8) | (payloadBytes[3] & 0xFF);
+        }
+        else if (messageType == 7){ //PIECE
+            payloadInt = ((payloadBytes[0] & 0xFF) << 24) | ((payloadBytes[1] & 0xFF) << 16) |
+                    ((payloadBytes[2] & 0xFF) << 8) | (payloadBytes[3] & 0xFF);
+            this.payloadBytes = Arrays.copyOfRange(payloadBytes, 4, payloadBytes.length);
+        }
+        else {
+            payloadInt = -1;
+        }
+        System.out.println("Payload Int: " + payloadInt);
+        if (messageType == 7){
+            System.out.println("THE PAYLOAD INT OR INDEX AFTER PIECE: " + payloadInt);
+        }
+
     }
     public int[] unpackBitfield(byte[] payloadBytes, int bitfieldSize) {
         int[] bitfield = new int[bitfieldSize];
@@ -106,7 +129,7 @@ public class Message {
     public byte[] createHaveMessage(int pieceRequested){
         ByteBuffer buffer = ByteBuffer.allocate(9);
         buffer.putInt(4);
-        buffer.put((byte)6);
+        buffer.put((byte)4);
         buffer.putInt(pieceRequested);
         return buffer.array();
     };

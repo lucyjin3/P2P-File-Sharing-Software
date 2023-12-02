@@ -137,7 +137,7 @@ public class StartRemotePeers {
                 Channel channel = session.openChannel("exec");
              //   System.out.println("remotePeerID"+remotePeer.getPeerID());
                 //((ChannelExec) channel).setCommand("lsof -i:6001");
-                //((ChannelExec) channel).setCommand("kill 3615241 \nkill 3154229 \n");
+                //((ChannelExec) channel).setCommand("kill  \n kill 3128307 \nkill 3140415 \n");
                 ((ChannelExec) channel).setCommand("cd CNT4007Project \n" + scriptPrefix + remotePeer.getPeerID() + " " + dir);
 
                 channel.setInputStream(null);
@@ -150,6 +150,7 @@ public class StartRemotePeers {
                         + remotePeer.getHostName() + " server with commands");
 
                 (new Thread(() -> {
+
                     // TODO: Call cnt4007.peerProcess(peerID);
                     //startPeerProcess(remotePeer.getPeerID(), dir);
 //                    peerProcess peerProcess = null;
@@ -184,6 +185,7 @@ public class StartRemotePeers {
                 System.out.println(remotePeer.getPeerID() + " JSchException >:");
                 e.printStackTrace();
             } catch (IOException ex) {
+
                 System.out.println(remotePeer.getPeerID() + " Exception >:");
                 ex.printStackTrace();
             }

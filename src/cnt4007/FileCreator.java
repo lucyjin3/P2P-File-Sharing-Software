@@ -15,7 +15,9 @@ public class FileCreator {
 
             file.seek(position);
 
+            //file.write(payload,(int)position,pieceSize);
             file.write(payload);
+
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
