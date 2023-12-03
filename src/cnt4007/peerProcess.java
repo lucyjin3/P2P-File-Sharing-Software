@@ -1,9 +1,7 @@
 package cnt4007;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.Vector;
-import java.util.Random;
+import java.util.*;
 
 // Will be called by startRemotePeers for each peer
 public class peerProcess {
