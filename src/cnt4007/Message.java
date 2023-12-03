@@ -1,13 +1,8 @@
 package cnt4007;
 
-import java.io.*;
-import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Arrays;
 
 
@@ -20,8 +15,6 @@ public class Message {
     public byte[] interestedMessage;
 
     public byte[] notInterestedMessage;
-    public byte[] lengthBytes;
-    public byte[] typeByte;
     public int[] bitFieldFromMsg;
 
     public byte[] payloadBytes;
@@ -68,12 +61,8 @@ public class Message {
 //        byte[] lengthBytes = input.readNBytes(4);
 //        ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes);
         this.length = length;
-        //System.out.println("Length: " + length);
 
-        //byte[] typeBytes = input.readNBytes(1);
         this.messageType = type;
-
-        //System.out.println("Message type: " + messageType);
 
         // Process the payload...
         this.payloadBytes = payloadBytes;
@@ -126,15 +115,17 @@ public class Message {
     public byte[] getNotInterestedMessage(){
         return this.notInterestedMessage;
     }
+
     public byte[] createHaveMessage(int pieceRequested){
         ByteBuffer buffer = ByteBuffer.allocate(9);
         buffer.putInt(4);
         buffer.put((byte)4);
         buffer.putInt(pieceRequested);
         return buffer.array();
-    };
+    }
 
     public byte[] createBitfieldMessage(int[] bitfield) {
+
         // Calculate the number of bytes needed to represent the bitfield (8 bits per byte)
         int numBytes = (bitfield.length + 7) / 8;
 
@@ -159,12 +150,13 @@ public class Message {
 
 
     public byte[] createRequestMessage(int index){
+        this.payloadInt = index;
         ByteBuffer buffer = ByteBuffer.allocate(9);
         buffer.putInt(4);
         buffer.put((byte)6);
         buffer.putInt(index);
         return buffer.array();
-    };
+    }
 
     public byte[] createPieceMessage(int index, byte[] pieceContent){
         ByteBuffer buffer = ByteBuffer.allocate(5 + 4 + pieceContent.length);
@@ -173,6 +165,5 @@ public class Message {
         buffer.putInt(index);
         buffer.put(pieceContent);
         return buffer.array();
-    };
-
+    }
 }

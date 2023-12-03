@@ -5,10 +5,8 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.Objects;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicReference;
-import java.nio.charset.StandardCharsets;
 
 // Client for each peer
 // Will connect to the peers that have started previously
@@ -47,9 +45,15 @@ public class Client {
         public void run() {
             try {
                 boolean serverInterested = false;
+                boolean clientInterested = false;
+                boolean getFirstInterested = false;
                 boolean continueLoop = true;
+                boolean clientChoked = false;
+                boolean serverChoked = false;
                 byte[] receivedBytes = null;
                 int [] threadBitfield;
+                long startTime = System.currentTimeMillis();
+
                 // Establish connectin with server
                 Socket socket = new Socket(host, port);
                 System.out.println(clientId + " Connected to the server" + this.server.getPeerID());
@@ -79,13 +83,11 @@ public class Client {
 
                 //Setting up message object
                 Message msgObj = new Message();
-                //msgObj.receiveMessage(input);
-                //String msgType = msgObj.messageType;
 
                 peerProcess.PeerInfo clientInfo = getSpecificPeer(peerInfoVector, Integer.parseInt(clientId));
                 peerProcess.PeerInfo serverInfo = getSpecificPeer(peerInfoVector, Integer.parseInt(lastFourServerID));
 
-                threadBitfield = clientInfo.getBitfield();
+                threadBitfield = Arrays.copyOf(clientInfo.getBitfield(), clientInfo.getBitfield().length);
                 byte [] bitFieldMSG = msgObj.createBitfieldMessage(clientInfo.getBitfield());
                 System.out.println("BitFieldMSG Binary Values from client:");
                 for (byte b : bitFieldMSG) {
@@ -110,21 +112,19 @@ public class Client {
                     if(!continueLoop){
                         break;
                     }
+
                     try {
                         receivedBytes = (byte[]) input.readObject();
                     } catch (ClassNotFoundException e) {
-                        socket.close();
-                        Thread.currentThread().interrupt();
+
                         System.out.println("Error: " + e.getMessage());
                         // Sets the custom "ServerNotReadyException"
                         // Client is connecting to server that has not been started yet
                         exceptionRef.set(new ServerNotReadyException("Server is not ready yet."));
                     } catch (EOFException eof){
-                        socket.close();
-                        Thread.currentThread().interrupt();
+
                         System.out.println("Error: " + eof.getMessage());
                     }
-
 
                     // Send a byte array as an object
 
@@ -139,7 +139,6 @@ public class Client {
                     // Extract the next byte
                     byte messageType = buffer.get();
                     int messageTypeInt = messageType & 0xFF;
-                    System.out.println("Message Type: " + messageTypeInt);
 
                     // Extract the remaining bytes as specified by 'length'
                     byte[] content = new byte[length];
@@ -151,40 +150,64 @@ public class Client {
                             case 0: // CHOKE
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " is choked by " + lastFourServerID);
+                                clientChoked = true;
                                 break;
                             case 1: // UNCHOKE
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " is unchoked by " + lastFourServerID);
+                                clientChoked = false;
+
+                                if(Arrays.stream(clientInfo.getBitfield()).anyMatch(bit -> bit == 0)) {
+                                    System.out.println("I need something");
+                                    int randIndex = clientInfo.getRandomIndexWith1(serverInfo.getBitfield());
+                                    System.out.println("This is what I need " + randIndex);
+                                    if (randIndex != -1) {
+                                        output.writeObject(msgObj.createRequestMessage(randIndex));
+                                        msgObj.index = randIndex;
+                                    }
+                                }
                                 break;
                             case 2: // Interested
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘interested’ message from " + lastFourServerID);
 
-                                //Used for testing purposes. Will be moved to unchocked
-                                int randIndex = clientInfo.getRandomIndexWith1(serverInfo.bitfield);
-                                if (randIndex != -1) {
-                                    output.writeObject(msgObj.createHaveMessage(randIndex));
-                                }
                                 serverInterested = true;
+                                clientInfo.setInterestedNeighbors(Integer.parseInt(lastFourServerID), serverInterested);
+
+                                if(!getFirstInterested){
+                                    serverInfo.setLastTimePreferredNeighborsChanged(System.currentTimeMillis());
+                                    clientInfo.selectPreferredNeighbors(config.getNeighborsVector());
+                                    if(clientInfo.getLastTimeOptimisticallyUnchokedChanged() == 0) {
+                                        clientInfo.setOptimisticallyUnchoked(config.getNeighborsVector());
+                                    }
+                                    if(clientInfo.getPreferredNeighbors().containsKey(Integer.parseInt(lastFourServerID))){
+                                        output.writeObject(msgObj.unchokeMessage);
+                                        serverChoked = false;
+                                    }else{
+                                        output.writeObject(msgObj.chokeMessage);
+                                        serverChoked = true;
+                                    }
+                                    getFirstInterested = true;
+                                }
+
                                 break;
                             case 3: // NOT INTERESTED
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘not interested’ message from " + lastFourServerID);
                                 serverInterested = false;
+                                clientInfo.setInterestedNeighbors(Integer.parseInt(lastFourServerID), serverInterested);
                                 break;
                             case 4: // HAVE
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘have’ message from " + lastFourServerID);
 
-                                // Only used for testing purposes. Will be moved to unchoked
-                                if (clientInfo.bitfield[msgObj.payloadInt] == 0) {
-                                    output.writeObject(msgObj.createRequestMessage(msgObj.payloadInt));
-                                    msgObj.index = msgObj.payloadInt;
-                                } else if (isInterestedAtIndex(clientInfo.getBitfield(), serverInfo.getBitfield(), msgObj.payloadInt)) {
-                                    //Needed to be updated later during choke and unchoke
-                                    //Don't always send interested message
+                                serverInfo.setBitfield(msgObj.payloadInt);
+                                if (isInterestedAtIndex(clientInfo.getBitfield(), serverInfo.getBitfield(), msgObj.payloadInt) && !clientInterested) {
+
+                                    clientInterested = true;
                                     output.writeObject(msgObj.getInterestedMessage());
-                                } else {
+                                } else if(!isInterestedAtIndex(clientInfo.getBitfield(), serverInfo.getBitfield(), msgObj.payloadInt) && clientInterested){
+                                    clientInterested = false;
                                     output.write(msgObj.getNotInterestedMessage());
                                 }
                                 break;
@@ -193,28 +216,52 @@ public class Client {
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘bitfield’ from " + lastFourServerID);
 
                                 if (isInterested(clientInfo.getBitfield(), serverInfo.getBitfield())) {
+                                    clientInterested = true;
                                     output.writeObject(msgObj.getInterestedMessage());
                                 } else {
+                                    clientInterested = false;
                                     output.writeObject(msgObj.getNotInterestedMessage());
                                 }
 
                                 break;
                             case 6: // REQUEST
+
+
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘request’ message from " + lastFourServerID);
-                                output.writeObject(msgObj.createPieceMessage(msgObj.payloadInt, FileCreator.readFile(msgObj.payloadInt, config.getPieceSize(), config.getOutputFilePath())));
-                                serverInfo.bitfield[msgObj.payloadInt] = 1;
+                                if(!serverChoked) {
+                                    output.writeObject(msgObj.createPieceMessage(msgObj.payloadInt, FileCreator.readFile(msgObj.payloadInt, config.getPieceSize(), config.getOutputFilePath())));
+                                }
+
                                 break;
+
                             case 7: // PIECE
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘piece' from " + lastFourServerID);
-                                System.out.println("Piece Index: " + msgObj.payloadInt);
 
-                                System.out.println("File Path: " + config.getOutputFilePath());
                                 indexVector.add(msgObj.payloadInt);
                                 FileCreator.writeToFile(config.getPieceSize(), msgObj.payloadInt, msgObj.payloadBytes, config.getOutputFilePath());
                                 clientInfo.setBitfield(msgObj.payloadInt);
-                                threadBitfield[msgObj.payloadInt] = 1;
+
+                                serverInfo.getPreferredNeighbors().put(Integer.parseInt(clientId),serverInfo.getPreferredNeighbors().get(Integer.parseInt(lastFourServerID) + 1));
+
+                                if(Integer.parseInt(clientId) == serverInfo.getOptimisticallyUnchoked()){
+                                    serverInfo.setoUcdownloadrate(true);
+                                }
+                                if(isInterested(clientInfo.getBitfield(), serverInfo.getBitfield())){
+                                    if(!clientInterested){
+                                        output.writeObject(msgObj.interestedMessage);
+                                    }
+                                    int randIndex = clientInfo.getRandomIndexWith1(serverInfo.bitfield);
+                                    if (randIndex != -1) {
+                                        output.writeObject(msgObj.createRequestMessage(randIndex));
+                                        msgObj.index = randIndex;
+                                    }
+                                }else{
+                                    if(clientInterested){
+                                        output.writeObject(msgObj.notInterestedMessage);
+                                    }
+                                }
                                 break;
                             default:
                                 System.out.println("Invalid option. Please select a number between 0 and 7.");
@@ -222,26 +269,40 @@ public class Client {
                         }
 
 
-                        if(messageTypeInt == 7) {
-                            // Used for testing to keep moving
-                           for (int i = 0; i < serverInfo.bitfield.length; i++) {
-                                if (serverInfo.bitfield[i] == 1 && clientInfo.bitfield[i] == 0) {
-                                    output.writeObject(msgObj.interestedMessage);
-                                    break;
-                                }
-                            }
+                    if (!Arrays.equals(threadBitfield, clientInfo.getBitfield())) {
+                        int index = newPiece(threadBitfield, clientInfo.getBitfield());
+                        if (index != -1) {
+                            threadBitfield[index] = 1;
+                            output.writeObject(msgObj.createHaveMessage(index));
                         }
+                    }
 
-                        if (!Arrays.equals(threadBitfield, clientInfo.bitfield)) {
-                            int index = newPiece(threadBitfield, clientInfo.getBitfield());
-                            if (index != -1) {
-                                threadBitfield[index] = 1;
-                                output.writeObject(msgObj.createHaveMessage(index));
+                    if(System.currentTimeMillis() - clientInfo.getLastTimePreferredNeighborsChanged() >= config.unchokingInterval * 1000L){
+                        clientInfo.setLastTimePreferredNeighborsChanged(System.currentTimeMillis());
+                        clientInfo.selectPreferredNeighbors(config.getNeighborsVector());
+
+                        if(clientInfo.getPreferredNeighbors().containsKey(Integer.parseInt(lastFourServerID))){
+                            if (serverChoked) {
+                                output.writeObject(msgObj.unchokeMessage);
                             }
-
+                            serverChoked = false;
+                        }else if(!clientInfo.getPreferredNeighbors().containsKey(Integer.parseInt(lastFourServerID))){
+                            if (!serverChoked) {
+                                output.writeObject(msgObj.chokeMessage);
+                            }
+                            serverChoked = true;
                         }
-                        msgObj.messageType = -1;
-                        receivedBytes = null;
+                    }
+
+                    if(System.currentTimeMillis() - clientInfo.getLastTimePreferredNeighborsChanged() >= config.optimisticUnchokingInterval * 1000L){
+                        clientInfo.setOptimisticallyUnchoked(config.getNeighborsVector());
+                    }
+                    if(Integer.parseInt(lastFourServerID) == clientInfo.getOptimisticallyUnchoked()){
+                        if(serverChoked){
+                            output.writeObject(msgObj.unchokeMessage);
+                        }
+                        serverChoked = false;
+                    }
 
                 }
                 int countIndexes = 0;
@@ -257,11 +318,6 @@ public class Client {
 
             }catch (IOException e) {
                 Thread.currentThread().interrupt();
-                return;
-                //System.out.println("Error: " + e.getMessage());
-                // Sets the custom "ServerNotReadyException"
-                // Client is connecting to server that has not been started yet
-                //exceptionRef.set(new ServerNotReadyException("Server is not ready yet."));
             }
         }
         public peerProcess.PeerInfo getSpecificPeer(Vector<peerProcess.PeerInfo> peerInfoVector, int peerID){
@@ -320,7 +376,6 @@ public class Client {
 
     public static void clientMain(int peerID, Vector<peerProcess.PeerInfo> peerInfoVector, peerProcess config) {
 
-        // TODO: Create a for loop to connect to all peers that were started prior
         for (int i = 0; i < peerInfoVector.size(); i++) {
             if (peerInfoVector.get(i).getPeerID() == peerID) {
                 break;
@@ -333,8 +388,6 @@ public class Client {
 
             String host = "localhost";
 
-            // port will need to be configurable
-            // will be set by parameters most likely
             int retryCount = 0;
             AtomicReference<Exception> exceptionRef = new AtomicReference<>(null);
             // Handle possible delays in previous peer servers starting up
@@ -344,13 +397,6 @@ public class Client {
                 // Will start ClientConnection for each peer client as they connect to servers
                 Thread connectionThread = new Thread(new ClientConnection(Integer.toString(peerID), peerInfoVector.get(i),peerInfoVector, config, exceptionRef));
                 connectionThread.start();
-//                try {
-//                    // Waits for connection to finish
-//                    // connectionThread.join();
-//                } catch (InterruptedException ex) {
-//                    System.out.println("Thread was interrupted: " + ex.getMessage());
-//                    return;
-//                }
 
                 // Checks if the thread has an exception
                 // Will retry is an exception is found after 5 secs

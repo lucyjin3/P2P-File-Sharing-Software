@@ -15,6 +15,7 @@ public class peerProcess {
     public int fileSize;
     public int pieceSize;
     Vector<PeerInfo> peerInfoVector = new Vector<>();
+    Vector<Integer> neighborsVector = new Vector<>();
     public int whoAmIIDNumber;
     public int numPieces;
     public static int numberOfPieces;
@@ -35,8 +36,14 @@ public class peerProcess {
         public int peerPortNumber;
         public int hasFile;
         public int[] bitfield;
-
-        public PeerInfo(int peerID, String peerHostName, int peerPortNumber, int hasFile) {
+        public int numberOfPreferredNeighbors;
+        HashMap<Integer, Integer> preferredNeighbors = new HashMap<>();
+        long lastTimePreferredNeighborsChanged = 0;
+        Vector<Integer> interestedNeighbors = new Vector<>();
+        public int optimisticallyUnchoked;
+        public int oUcdownloadrate = 0;
+        public long lastTimeOptimisticallyUnchokedChanged = 0;
+        public PeerInfo(int peerID, String peerHostName, int peerPortNumber, int hasFile, int numberOfPreferredNeighbors) {
             this.peerID = peerID;
             this.peerHostName = peerHostName;
             this.peerPortNumber = peerPortNumber;
@@ -45,7 +52,8 @@ public class peerProcess {
             if (hasFile == 1) {
                 Arrays.fill(bitfield, 1);
             }
-
+            this.numberOfPreferredNeighbors = numberOfPreferredNeighbors;
+            //this.preferredNeighbors.add(peerID);
         }
         public synchronized int getPeerID(){
             return this.peerID;
@@ -56,14 +64,155 @@ public class peerProcess {
         public synchronized int readBitfield(int index) {
             return this.bitfield[index];
         }
+        public synchronized void selectPreferredNeighbors(Vector<Integer> neighbors){
 
+            System.out.println(this.peerID + " is selecting preferred neighbors");
+            //Collections.shuffle(neighbors);
 
+            //this.preferredNeighbors.clear();
+            //if file is complete, randomly pick a preferred, otherwise pick from list of download rates
+            if(Arrays.stream(this.bitfield).anyMatch(bit -> bit == 0)) {
+                boolean containsUnchoked = false;
+                List<Map.Entry<Integer,Integer>> lastPreferredNeighbors = new ArrayList<>(this.preferredNeighbors.entrySet());
+                this.preferredNeighbors.clear();
+
+                //Sorting by the highest download rate
+                lastPreferredNeighbors.sort(Map.Entry.comparingByValue(Collections.reverseOrder()));
+                for(int i = 0; i < lastPreferredNeighbors.size(); i++){
+
+                    //If the lastPreferredNeighbors at i is still interested
+                    if(this.getInterestedNeighbors().contains(lastPreferredNeighbors.get(i).getKey())){
+                        //If this preferred neighbors is already the optimistically unchoked
+                        if(lastPreferredNeighbors.get(i).getKey() == this.optimisticallyUnchoked){
+                            this.preferredNeighbors.put(lastPreferredNeighbors.get(i).getKey(), 0);
+                            containsUnchoked = true;
+                            continue;
+                        }
+                        // if the Unchoked has not been entered yet, see if it should be entered
+                        if(!containsUnchoked) {
+                            if (this.oUcdownloadrate > lastPreferredNeighbors.get(i).getValue()) {
+                                this.preferredNeighbors.put(this.optimisticallyUnchoked, 0);
+                                this.setoUcdownloadrate(false);
+                                i--;
+                                containsUnchoked = true;
+                                continue;
+                            }
+                        }
+                        this.preferredNeighbors.put(lastPreferredNeighbors.get(i).getKey(), 0);
+                    }
+                    if(this.preferredNeighbors.size() == this.numberOfPreferredNeighbors){
+                        for(int j = 0; j < this.preferredNeighbors.size(); j++){
+                            System.out.println(this.getPeerID() + " preferred " + j + ": " + this.preferredNeighbors.get(j));
+                        }
+                        return;
+                    }
+                }
+
+                // Fill preferredNeighbors will interested neighbors
+                if(this.preferredNeighbors.size() < this.numberOfPreferredNeighbors){
+                    if(!containsUnchoked){
+                        this.preferredNeighbors.put(this.optimisticallyUnchoked, 0);
+                        this.setoUcdownloadrate(false);
+                        if(this.preferredNeighbors.size() == this.numberOfPreferredNeighbors){
+                            for(int j = 0; j < this.preferredNeighbors.size(); j++){
+                                System.out.println(this.getPeerID() + " preferred " + j + ": " + this.preferredNeighbors.get(j));
+                            }
+                            return;
+                        }
+                    }
+                    Collections.shuffle(neighbors);
+                    for(int i = 0; i < neighbors.size(); i++){
+                        if(!this.preferredNeighbors.containsKey(neighbors.get(i)) && this.interestedNeighbors.contains(neighbors.get(i))){
+                            this.preferredNeighbors.put(neighbors.get(i), 0);
+                        }
+                        if(this.preferredNeighbors.size() == this.numberOfPreferredNeighbors){
+                            for(int j = 0; j < this.preferredNeighbors.size(); j++){
+                                System.out.println(this.getPeerID() + " preferred " + j + ": " + this.preferredNeighbors.get(j));
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            else {
+                System.out.println(this.peerID + " has the file and choosing peers randomly");
+                Collections.shuffle(neighbors);
+                this.preferredNeighbors.clear();
+                for(int i = 0; i < neighbors.size(); i++) {
+                    if(this.interestedNeighbors.contains(neighbors.get(i))){
+                        this.preferredNeighbors.put(neighbors.get(i), 0);
+                    }
+                    if(this.preferredNeighbors.size() == this.numberOfPreferredNeighbors){
+                        break;
+                    }
+                }
+                for(Map.Entry<Integer, Integer> entry : this.preferredNeighbors.entrySet()){
+                    System.out.println(this.getPeerID() + " preferred :" + entry.getKey());
+                }
+            }
+
+        }
+        public synchronized HashMap<Integer, Integer> getPreferredNeighbors(){
+            return this.preferredNeighbors;
+        }
+        public synchronized void setInterestedNeighbors(int neighbor,boolean interested){
+
+            if(!interested){
+                if(this.getInterestedNeighbors().contains(neighbor)){
+                    this.getInterestedNeighbors().remove(this.interestedNeighbors.indexOf(neighbor));
+                }
+
+            }else{
+                for(int n : this.getInterestedNeighbors()){
+                    if(n == neighbor){
+                        return;
+                    }
+                }
+                this.getInterestedNeighbors().add(neighbor);
+            }
+        }
+        public synchronized Vector<Integer> getInterestedNeighbors(){
+            return this.interestedNeighbors;
+        }
+        public synchronized void setOptimisticallyUnchoked(Vector<Integer> neighbors){
+            setLastTimeOptimisticallyUnchokedChanged();
+
+            Collections.shuffle(neighbors);
+            for(int i = 0; i< neighbors.size(); i++){
+
+                // Find a neighbor that is choked but interested to become optimisticallyUnchoked
+                if(!this.preferredNeighbors.containsKey(neighbors.get(i)) && this.interestedNeighbors.contains(neighbors.get(i))){
+                    this.optimisticallyUnchoked = neighbors.get(i);
+                    System.out.println(neighbors.get(i) + " is opt unchoked by " + this.getPeerID());
+                    setoUcdownloadrate(false);
+                }
+            }
+        }
+        public synchronized int getOptimisticallyUnchoked(){
+            return this.optimisticallyUnchoked;
+        }
+        public synchronized void setoUcdownloadrate(boolean addOne){
+            if(addOne){
+                this.oUcdownloadrate = this.oUcdownloadrate + 1;
+            }else{
+                this.oUcdownloadrate = 0;
+            }
+        }
+        public synchronized int getoUcdownloadrate(){
+            return this.oUcdownloadrate;
+        }
+        public synchronized void setLastTimeOptimisticallyUnchokedChanged(){
+            this.lastTimeOptimisticallyUnchokedChanged = System.currentTimeMillis();
+        }
+        public synchronized long getLastTimeOptimisticallyUnchokedChanged(){
+            return this.lastTimeOptimisticallyUnchokedChanged;
+        }
         public synchronized int[] getBitfield(){
             return this.bitfield;
         }
         public int getRandomIndexWith1(int [] otherBitfield){
             for (int i = 0; i < bitfield.length; i++){
-                if (bitfield[i]==1){
+                if (bitfield[i] == 0 && otherBitfield[i]==1) {
                     break;
                 }
                 if (i == bitfield.length -1){
@@ -79,7 +228,7 @@ public class peerProcess {
 
             while (true) {
                 int randomIndex = random.nextInt(bitfield.length);
-                if (bitfield[randomIndex] == 1 && otherBitfield[randomIndex]==0) {
+                if (bitfield[randomIndex] == 0 && otherBitfield[randomIndex]==1) {
                     return randomIndex;
                 }
             }
@@ -180,8 +329,10 @@ public class peerProcess {
                     }
                 }
 
-                PeerInfo peerInfo = new PeerInfo(peerID, peerHostName, peerPortNumber, hasFile);
+                PeerInfo peerInfo = new PeerInfo(peerID, peerHostName, peerPortNumber, hasFile, numberOfPreferredNeighbors);
                 peerInfoVector.add(peerInfo);
+                neighborsVector.add(peerID);
+
             }
         } finally {
             if (reader != null) {
@@ -202,7 +353,6 @@ public class peerProcess {
 
         // Give the server some time to initialize, if necessary
         try {
-            // 1 second delay. Adjust if necessary.
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
