@@ -11,28 +11,7 @@ import java.util.Vector;
 // Server for each peer
 // Peers' clients that start after will connect to the server
 public class Server {
-    public void readMessage(Socket clientSocket) throws IOException {
-        InputStream input = clientSocket.getInputStream();
 
-        // Read the first 5 bytes (4 for length, 1 for type)
-        byte[] lengthBytes = input.readNBytes(4);
-        byte[] typeByte = input.readNBytes(1);
-
-        // Convert length bytes to String and then parse integer
-        String lengthStr = new String(lengthBytes, StandardCharsets.US_ASCII);
-        int length = Integer.parseInt(lengthStr);
-
-        // Convert type byte to char
-        char type = new String(typeByte, StandardCharsets.US_ASCII).charAt(0);
-
-        // Read the payload
-        byte[] payloadBytes = input.readNBytes(length);
-        String payload = new String(payloadBytes, StandardCharsets.US_ASCII);
-
-        System.out.println("Length: " + length);
-        System.out.println("Type: " + type);
-        System.out.println("Payload: " + payload);
-    }
     public static void serverMain(int peerID, Vector<peerProcess.PeerInfo> peerInfoVector, peerProcess config) {
         try {
             int port = peerInfoVector.get(0).peerPortNumber;
@@ -105,12 +84,7 @@ class ClientHandler implements Runnable {
             threadBitfield = Arrays.copyOf(serverInfo.getBitfield(), serverInfo.getBitfield().length);
 
             byte [] bitFieldMSG = msgObj.createBitfieldMessage(serverInfo.getBitfield());
-            System.out.println("BitFieldMSG Binary Values from server side:");
-            for (byte b : bitFieldMSG) {
-                String binaryString = String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0');
-                System.out.print(binaryString + " ");
-            }
-            System.out.println();
+
             try{
                 receivedBytes = (byte[]) input.readObject();
             }
@@ -125,7 +99,7 @@ class ClientHandler implements Runnable {
 
             // Extract the first four bytes as an integer
             int length = buffer.getInt();
-            System.out.println("Length: " +length);
+
 
             // Extract the next byte
             byte messageType = buffer.get();
@@ -136,7 +110,7 @@ class ClientHandler implements Runnable {
             buffer.get(content);
             msgObj.receiveMessage(length, messageTypeInt, content);
             if (messageTypeInt==5) {
-                System.out.println("bitfield message");
+                System.out.println("[" + time + "] Server Peer " + peerID + " received the ‘bitfield’ from Client " + clientID);
                 output.writeObject(bitFieldMSG);
                 if (isInterested(serverInfo.getBitfield(), clientInfo.getBitfield())) {
                     serverInterested = true;
@@ -146,7 +120,6 @@ class ClientHandler implements Runnable {
                     output.writeObject(msgObj.getNotInterestedMessage());
                 }
             }
-            System.out.println("Loop entered on server side:");
             while(continueLoop){
 
                 // Check if all the files are completed

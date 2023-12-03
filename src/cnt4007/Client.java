@@ -89,17 +89,12 @@ public class Client {
 
                 threadBitfield = Arrays.copyOf(clientInfo.getBitfield(), clientInfo.getBitfield().length);
                 byte [] bitFieldMSG = msgObj.createBitfieldMessage(clientInfo.getBitfield());
-                System.out.println("BitFieldMSG Binary Values from client:");
-                for (byte b : bitFieldMSG) {
-                    String binaryString = String.format("%8s", Integer.toBinaryString(b & 0xFF)).replace(' ', '0');
-                    System.out.print(binaryString + " ");
-                }
+
                 Vector<Integer> indexVector = new Vector<>();
 
                 output.writeObject(bitFieldMSG);
                 output.flush();
 
-                System.out.println("Loop entered on client side:");
                 while(continueLoop) {
                     // Check if all the files are completed
                     for (peerProcess.PeerInfo peer : peerInfoVector) {
@@ -134,7 +129,6 @@ public class Client {
 
                     // Extract the first four bytes as an integer
                     int length = buffer.getInt();
-                    System.out.println("Length: " + length);
 
                     // Extract the next byte
                     byte messageType = buffer.get();
@@ -351,28 +345,6 @@ public class Client {
         }
     }
 
-    public static void readMessage(Socket clientSocket) throws IOException {
-        InputStream input = clientSocket.getInputStream();
-
-        // Read the first 5 bytes (4 for length, 1 for type)
-        byte[] lengthBytes = input.readNBytes(4);
-        byte[] typeByte = input.readNBytes(1);
-
-        // Convert length bytes to String and then parse integer
-        String lengthStr = new String(lengthBytes, StandardCharsets.US_ASCII);
-        int length = Integer.parseInt(lengthStr);
-
-        // Convert type byte to char
-        char type = new String(typeByte, StandardCharsets.US_ASCII).charAt(0);
-
-        // Read the payload
-        byte[] payloadBytes = input.readNBytes(length);
-        String payload = new String(payloadBytes, StandardCharsets.US_ASCII);
-
-        System.out.println("Length: " + length);
-        System.out.println("Type: " + type);
-        System.out.println("Payload: " + payload);
-    }
 
     public static void clientMain(int peerID, Vector<peerProcess.PeerInfo> peerInfoVector, peerProcess config) {
 

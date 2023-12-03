@@ -57,9 +57,6 @@ public class Message {
     }
     public void receiveMessage(int length, int type, byte[] payloadBytes) throws IOException {
 
-        System.out.println("Please");
-//        byte[] lengthBytes = input.readNBytes(4);
-//        ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes);
         this.length = length;
 
         this.messageType = type;
@@ -84,13 +81,6 @@ public class Message {
             payloadInt = ((payloadBytes[0] & 0xFF) << 24) | ((payloadBytes[1] & 0xFF) << 16) |
                     ((payloadBytes[2] & 0xFF) << 8) | (payloadBytes[3] & 0xFF);
             this.payloadBytes = Arrays.copyOfRange(payloadBytes, 4, payloadBytes.length);
-        }
-        else {
-            payloadInt = -1;
-        }
-        System.out.println("Payload Int: " + payloadInt);
-        if (messageType == 7){
-            System.out.println("THE PAYLOAD INT OR INDEX AFTER PIECE: " + payloadInt);
         }
 
     }

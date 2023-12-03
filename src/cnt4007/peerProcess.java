@@ -27,7 +27,9 @@ public class peerProcess {
     Vector<PeerInfo> getPeerInfoVector(){
         return peerInfoVector;
     }
-
+    synchronized Vector<Integer> getNeighborsVector(){
+        return neighborsVector;
+    }
 
     // Each peer will know who it is
     public static class PeerInfo {
@@ -61,6 +63,10 @@ public class peerProcess {
         public synchronized void setBitfield(int index) {
             this.bitfield[index] = 1;
         }
+        public synchronized void setLastTimePreferredNeighborsChanged(long time){
+            this.lastTimePreferredNeighborsChanged = time;
+        }
+        public synchronized long getLastTimePreferredNeighborsChanged(){ return this.lastTimePreferredNeighborsChanged;}
         public synchronized int readBitfield(int index) {
             return this.bitfield[index];
         }
