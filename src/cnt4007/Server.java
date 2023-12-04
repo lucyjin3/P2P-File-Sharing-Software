@@ -70,6 +70,8 @@ class ClientHandler implements Runnable {
 
             Message msgObj = new Message();
 
+            // 1c
+            // 2a
             // Handshake going to client. Sent by server
             writer.println("P2PFILESHARINGPROJ0000000000" + peerID);
 
@@ -109,9 +111,12 @@ class ClientHandler implements Runnable {
             byte[] content = new byte[length];
             buffer.get(content);
             msgObj.receiveMessage(length, messageTypeInt, content);
+            // 2b
             if (messageTypeInt==5) {
                 System.out.println("[" + time + "] Server Peer " + peerID + " received the ‘bitfield’ from Client " + clientID);
                 output.writeObject(bitFieldMSG);
+
+                // 2c
                 if (isInterested(serverInfo.getBitfield(), clientInfo.getBitfield())) {
                     serverInterested = true;
                     output.writeObject(msgObj.getInterestedMessage());
@@ -122,16 +127,24 @@ class ClientHandler implements Runnable {
             }
             while(continueLoop){
 
+                if(Arrays.stream(serverInfo.getBitfield()).allMatch(bit -> bit == 1) && !serverInfo.completedFile){
+                    serverInfo.setCompletedFile();
+                    time = new Date();
+                    System.out.println("[" + time + "] Peer " + peerID + " has downloaded the complete file");
+                }
+
                 // Check if all the files are completed
                 for (peerProcess.PeerInfo peer : peerInfoVector) {
                     continueLoop = false;
-                    if (Arrays.stream(peer.getBitfield()).anyMatch(bit -> bit == 0)) {
+                    if (!peer.getCompletedFile()) {
                         continueLoop = true;
                         break;
                     }
                 }
                 if(!continueLoop){
-                    break;
+                    System.out.println("All files are downloaded");
+                    clientSocket.close();
+                    Thread.currentThread().interrupt();
                 }
 
                 try{
@@ -197,10 +210,13 @@ class ClientHandler implements Runnable {
 
                                 clientChoked = false;
                             }else{
-
-                                output.writeObject(msgObj.chokeMessage);
-
-                                clientChoked = true;
+                                if(serverInfo.getOptimisticallyUnchoked() == Integer.parseInt(clientID)){
+                                    output.writeObject(msgObj.unchokeMessage);
+                                    clientChoked = false;
+                                }else{
+                                    output.writeObject(msgObj.chokeMessage);
+                                    clientChoked = true;
+                                }
                             }
                             getFirstInterested = true;
                         }
@@ -291,6 +307,7 @@ class ClientHandler implements Runnable {
 
                 }
 
+                // 2d
                 if(System.currentTimeMillis() - serverInfo.getLastTimePreferredNeighborsChanged() >= config.unchokingInterval * 1000L){
                     serverInfo.setLastTimePreferredNeighborsChanged(System.currentTimeMillis());
                     serverInfo.selectPreferredNeighbors(config.getNeighborsVector());
@@ -301,13 +318,21 @@ class ClientHandler implements Runnable {
                         }
                         clientChoked = false;
                     }else {
-                        if (!clientChoked) {
-                            output.writeObject(msgObj.chokeMessage);
+                        if(serverInfo.getOptimisticallyUnchoked() == Integer.parseInt(clientID)){
+                            clientChoked = false;
+                        }else{
+                            if (!clientChoked) {
+                                output.writeObject(msgObj.chokeMessage);
+                            }
+                            clientChoked = true;
                         }
-                        clientChoked = true;
+
                     }
                 }
-                if(System.currentTimeMillis() - serverInfo.getLastTimePreferredNeighborsChanged() >= config.optimisticUnchokingInterval * 1000L){
+
+                // 2e
+                if(System.currentTimeMillis() - serverInfo.getLastTimeOptimisticallyUnchokedChanged() >= config.optimisticUnchokingInterval * 1000L){
+                    System.out.println("Does this reach ever server?");
                     serverInfo.setOptimisticallyUnchoked(config.getNeighborsVector());
                 }
                 if(Integer.parseInt(clientID) == serverInfo.getOptimisticallyUnchoked()){

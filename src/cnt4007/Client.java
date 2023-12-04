@@ -66,6 +66,8 @@ public class Client {
 
                 String serverMessage;
 
+                // 1c
+                // 2a
                 // Handshake sent by client
                 writer.println("P2PFILESHARINGPROJ0000000000" + clientId);
                 serverMessage = reader.readLine();
@@ -92,33 +94,42 @@ public class Client {
 
                 Vector<Integer> indexVector = new Vector<>();
 
+                // 2b
                 output.writeObject(bitFieldMSG);
                 output.flush();
 
                 while(continueLoop) {
                     // Check if all the files are completed
+                    if(Arrays.stream(clientInfo.getBitfield()).allMatch(bit -> bit == 1) && !clientInfo.completedFile){
+                        clientInfo.setCompletedFile();
+                        time = new Date();
+                        System.out.println("[" + time + "] Peer " + clientId + " has downloaded the complete file");
+                    }
+                    // 1c
                     for (peerProcess.PeerInfo peer : peerInfoVector) {
                         continueLoop = false;
-                        if (Arrays.stream(peer.getBitfield()).anyMatch(bit -> bit == 0)) {
+                        if (!peer.getCompletedFile()) {
                             continueLoop = true;
                             break;
                         }
                     }
                     if(!continueLoop){
-                        break;
+                        System.out.println("All files are downloaded");
+                        socket.close();
+                        Thread.currentThread().interrupt();
                     }
 
                     try {
                         receivedBytes = (byte[]) input.readObject();
                     } catch (ClassNotFoundException e) {
 
-                        System.out.println("Error: " + e.getMessage());
+                        //System.out.println("Error: " + e.getMessage());
                         // Sets the custom "ServerNotReadyException"
                         // Client is connecting to server that has not been started yet
                         exceptionRef.set(new ServerNotReadyException("Server is not ready yet."));
                     } catch (EOFException eof){
 
-                        System.out.println("Error: " + eof.getMessage());
+                        //System.out.println("Error: " + eof.getMessage());
                     }
 
                     // Send a byte array as an object
@@ -152,9 +163,7 @@ public class Client {
                                 clientChoked = false;
 
                                 if(Arrays.stream(clientInfo.getBitfield()).anyMatch(bit -> bit == 0)) {
-                                    System.out.println("I need something");
                                     int randIndex = clientInfo.getRandomIndexWith1(serverInfo.getBitfield());
-                                    System.out.println("This is what I need " + randIndex);
                                     if (randIndex != -1) {
                                         output.writeObject(msgObj.createRequestMessage(randIndex));
                                         msgObj.index = randIndex;
@@ -172,14 +181,20 @@ public class Client {
                                     serverInfo.setLastTimePreferredNeighborsChanged(System.currentTimeMillis());
                                     clientInfo.selectPreferredNeighbors(config.getNeighborsVector());
                                     if(clientInfo.getLastTimeOptimisticallyUnchokedChanged() == 0) {
+                                        System.out.println("First change of oUC");
                                         clientInfo.setOptimisticallyUnchoked(config.getNeighborsVector());
                                     }
                                     if(clientInfo.getPreferredNeighbors().containsKey(Integer.parseInt(lastFourServerID))){
                                         output.writeObject(msgObj.unchokeMessage);
                                         serverChoked = false;
                                     }else{
-                                        output.writeObject(msgObj.chokeMessage);
-                                        serverChoked = true;
+                                        if(clientInfo.getOptimisticallyUnchoked() == Integer.parseInt(lastFourServerID)){
+                                            output.writeObject(msgObj.unchokeMessage);
+                                            serverChoked = false;
+                                        }else{
+                                            output.writeObject(msgObj.chokeMessage);
+                                            serverChoked = true;
+                                        }
                                     }
                                     getFirstInterested = true;
                                 }
@@ -209,6 +224,7 @@ public class Client {
                                 time = new Date();
                                 System.out.println("[" + time + "] Peer " + clientId + " received the ‘bitfield’ from " + lastFourServerID);
 
+                                // 2c
                                 if (isInterested(clientInfo.getBitfield(), serverInfo.getBitfield())) {
                                     clientInterested = true;
                                     output.writeObject(msgObj.getInterestedMessage());
@@ -271,6 +287,7 @@ public class Client {
                         }
                     }
 
+                    // 2d
                     if(System.currentTimeMillis() - clientInfo.getLastTimePreferredNeighborsChanged() >= config.unchokingInterval * 1000L){
                         clientInfo.setLastTimePreferredNeighborsChanged(System.currentTimeMillis());
                         clientInfo.selectPreferredNeighbors(config.getNeighborsVector());
@@ -280,15 +297,21 @@ public class Client {
                                 output.writeObject(msgObj.unchokeMessage);
                             }
                             serverChoked = false;
-                        }else if(!clientInfo.getPreferredNeighbors().containsKey(Integer.parseInt(lastFourServerID))){
-                            if (!serverChoked) {
-                                output.writeObject(msgObj.chokeMessage);
+                        }else{
+                            if(clientInfo.getOptimisticallyUnchoked() == Integer.parseInt(lastFourServerID)){
+                                serverChoked = false;
+                            }else{
+                                if (!serverChoked) {
+                                    output.writeObject(msgObj.chokeMessage);
+                                }
+                                serverChoked = true;
                             }
-                            serverChoked = true;
+
                         }
                     }
 
-                    if(System.currentTimeMillis() - clientInfo.getLastTimePreferredNeighborsChanged() >= config.optimisticUnchokingInterval * 1000L){
+                    // 2e
+                    if(System.currentTimeMillis() - clientInfo.getLastTimeOptimisticallyUnchokedChanged() >= config.optimisticUnchokingInterval * 1000L){
                         clientInfo.setOptimisticallyUnchoked(config.getNeighborsVector());
                     }
                     if(Integer.parseInt(lastFourServerID) == clientInfo.getOptimisticallyUnchoked()){
@@ -348,6 +371,7 @@ public class Client {
 
     public static void clientMain(int peerID, Vector<peerProcess.PeerInfo> peerInfoVector, peerProcess config) {
 
+        // 1b
         for (int i = 0; i < peerInfoVector.size(); i++) {
             if (peerInfoVector.get(i).getPeerID() == peerID) {
                 break;
@@ -362,6 +386,7 @@ public class Client {
 
             int retryCount = 0;
             AtomicReference<Exception> exceptionRef = new AtomicReference<>(null);
+            Vector<Thread> threads = new Vector<>();
             // Handle possible delays in previous peer servers starting up
             while (retryCount < MAX_RETRIES) {
 
@@ -369,7 +394,7 @@ public class Client {
                 // Will start ClientConnection for each peer client as they connect to servers
                 Thread connectionThread = new Thread(new ClientConnection(Integer.toString(peerID), peerInfoVector.get(i),peerInfoVector, config, exceptionRef));
                 connectionThread.start();
-
+                connectionThread.interrupt();
                 // Checks if the thread has an exception
                 // Will retry is an exception is found after 5 secs
                 // until it connects or MAX_RETRIES has been reached

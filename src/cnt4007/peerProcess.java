@@ -40,9 +40,10 @@ public class peerProcess {
         HashMap<Integer, Integer> preferredNeighbors = new HashMap<>();
         long lastTimePreferredNeighborsChanged = 0;
         Vector<Integer> interestedNeighbors = new Vector<>();
-        public int optimisticallyUnchoked;
+        public int optimisticallyUnchoked = 0;
         public int oUcdownloadrate = 0;
         public long lastTimeOptimisticallyUnchokedChanged = 0;
+        public boolean completedFile = false;
         public PeerInfo(int peerID, String peerHostName, int peerPortNumber, int hasFile, int numberOfPreferredNeighbors) {
             this.peerID = peerID;
             this.peerHostName = peerHostName;
@@ -51,9 +52,9 @@ public class peerProcess {
             this.bitfield = new int[numberOfPieces];
             if (hasFile == 1) {
                 Arrays.fill(bitfield, 1);
+                this.completedFile = true;
             }
             this.numberOfPreferredNeighbors = numberOfPreferredNeighbors;
-            //this.preferredNeighbors.add(peerID);
         }
         public synchronized int getPeerID(){
             return this.peerID;
@@ -68,12 +69,9 @@ public class peerProcess {
         public synchronized int readBitfield(int index) {
             return this.bitfield[index];
         }
+        // 2d
         public synchronized void selectPreferredNeighbors(Vector<Integer> neighbors){
 
-            System.out.println(this.peerID + " is selecting preferred neighbors");
-            //Collections.shuffle(neighbors);
-
-            //this.preferredNeighbors.clear();
             //if file is complete, randomly pick a preferred, otherwise pick from list of download rates
             if(Arrays.stream(this.bitfield).anyMatch(bit -> bit == 0)) {
                 boolean containsUnchoked = false;
@@ -105,9 +103,6 @@ public class peerProcess {
                         this.preferredNeighbors.put(lastPreferredNeighbors.get(i).getKey(), 0);
                     }
                     if(this.preferredNeighbors.size() == this.numberOfPreferredNeighbors){
-                        for(int j = 0; j < this.preferredNeighbors.size(); j++){
-                            System.out.println(this.getPeerID() + " preferred " + j + ": " + this.preferredNeighbors.get(j));
-                        }
                         return;
                     }
                 }
@@ -118,9 +113,6 @@ public class peerProcess {
                         this.preferredNeighbors.put(this.optimisticallyUnchoked, 0);
                         this.setoUcdownloadrate(false);
                         if(this.preferredNeighbors.size() == this.numberOfPreferredNeighbors){
-                            for(int j = 0; j < this.preferredNeighbors.size(); j++){
-                                System.out.println(this.getPeerID() + " preferred " + j + ": " + this.preferredNeighbors.get(j));
-                            }
                             return;
                         }
                     }
@@ -130,16 +122,12 @@ public class peerProcess {
                             this.preferredNeighbors.put(neighbors.get(i), 0);
                         }
                         if(this.preferredNeighbors.size() == this.numberOfPreferredNeighbors){
-                            for(int j = 0; j < this.preferredNeighbors.size(); j++){
-                                System.out.println(this.getPeerID() + " preferred " + j + ": " + this.preferredNeighbors.get(j));
-                            }
                             break;
                         }
                     }
                 }
             }
             else {
-                System.out.println(this.peerID + " has the file and choosing peers randomly");
                 Collections.shuffle(neighbors);
                 this.preferredNeighbors.clear();
                 for(int i = 0; i < neighbors.size(); i++) {
@@ -149,9 +137,6 @@ public class peerProcess {
                     if(this.preferredNeighbors.size() == this.numberOfPreferredNeighbors){
                         break;
                     }
-                }
-                for(Map.Entry<Integer, Integer> entry : this.preferredNeighbors.entrySet()){
-                    System.out.println(this.getPeerID() + " preferred :" + entry.getKey());
                 }
             }
 
@@ -178,6 +163,7 @@ public class peerProcess {
         public synchronized Vector<Integer> getInterestedNeighbors(){
             return this.interestedNeighbors;
         }
+        // 2e
         public synchronized void setOptimisticallyUnchoked(Vector<Integer> neighbors){
             setLastTimeOptimisticallyUnchokedChanged();
 
@@ -187,7 +173,8 @@ public class peerProcess {
                 // Find a neighbor that is choked but interested to become optimisticallyUnchoked
                 if(!this.preferredNeighbors.containsKey(neighbors.get(i)) && this.interestedNeighbors.contains(neighbors.get(i))){
                     this.optimisticallyUnchoked = neighbors.get(i);
-                    System.out.println(neighbors.get(i) + " is opt unchoked by " + this.getPeerID());
+                    Date time = new Date();
+                    System.out.println("[" + time + "] Peer " + this.peerID + " has the optimistically unchoked neighbor " + neighbors.get(i));
                     setoUcdownloadrate(false);
                 }
             }
@@ -238,6 +225,13 @@ public class peerProcess {
             }
         }
 
+        public synchronized void setCompletedFile(){
+            this.completedFile = true;
+        }
+        public synchronized boolean getCompletedFile(){
+            return this.completedFile;
+        }
+
     }
 
     public synchronized int getPieceSize(){
@@ -281,6 +275,7 @@ public class peerProcess {
     }
 
     // Constructor to initialize from the config files
+    // 1a
     public peerProcess(String configFilePath, String peerInfoFilePath) throws IOException {
 
         BufferedReader reader = null;
@@ -441,6 +436,7 @@ public class peerProcess {
     public static void main(String[] args) {
 
         try {
+            //1a
            peerProcess config = new peerProcess(args[1] + "/Common.cfg", args[1] + "/PeerInfo.cfg");//lucy mac
 
 
@@ -448,9 +444,7 @@ public class peerProcess {
             System.out.println(config.peerInfoVector.get(0).peerPortNumber);
 
             config.createFile(config);
-            //config.checkIfFileWrittenCorrectly();
             config.makeConnections(config);
-
         } catch (IOException e) {
             System.out.println("Error reading the configuration file: " + e.getMessage());
         }

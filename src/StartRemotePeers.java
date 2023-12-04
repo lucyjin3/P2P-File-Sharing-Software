@@ -85,6 +85,7 @@ public class StartRemotePeers {
             return;
         }
 
+        //1a
         try {
             Scanner sc = new Scanner(file);
             System.out.println("Reading from PeerInfo.cfg:");
@@ -100,7 +101,7 @@ public class StartRemotePeers {
         }
         try {
             Scanner sc = new Scanner(new File(dir+"/Common.cfg"));
-            System.out.println("Reading from Common.cfg:");
+            System.out.println("\nReading from Common.cfg:");
             while (sc.hasNextLine()){
                 String info = sc.nextLine();
                 System.out.println(info);
